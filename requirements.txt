@@ -3,3 +3,6 @@ discord.py>=2.3.0,<3.0.0
 
 # Environment variable management
 python-dotenv>=1.0.0,<2.0.0
+
+# System information and process monitoring
+psutil>=5.9.0,<6.0.0

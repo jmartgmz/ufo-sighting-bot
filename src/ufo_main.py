@@ -1,14 +1,23 @@
+"""
+UFO Sighting Bot - Main bot file.
+A Discord bot that sends random UFO images and tracks user reactions.
+"""
 import discord
 from discord.ext import commands
 import asyncio
-import random
 import os
-import json
+from datetime import datetime
 from dotenv import load_dotenv
 
+# Import our custom modules
+from utils import load_config, load_reactions, save_reactions, get_random_image, get_random_interval, get_log_channel_id, create_welcome_embed
+from commands import setup_all_commands
+
+# Load environment variables
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 
+# Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
 intents.reactions = True
@@ -16,43 +25,12 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="ufo ", intents=intents)
 
-CONFIG_FILE = "data/config.json"
-REACTIONS_FILE = "data/reactions.json"
-
-# --- File handling ---
-def load_config():
-    if not os.path.exists(CONFIG_FILE):
-        return {}
-    with open(CONFIG_FILE, "r") as f:
-        return json.load(f)
-
-def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f, indent=4)
-
-def load_reactions():
-    if not os.path.exists(REACTIONS_FILE):
-        return {}
-    with open(REACTIONS_FILE, "r") as f:
-        return json.load(f)
-
-def save_reactions(data):
-    with open(REACTIONS_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-IMAGE_URLS = [
-    "https://s.hdnux.com/photos/01/25/20/06/22348185/4/rawImage.jpg",
-    "https://brobible.com/wp-content/uploads/2023/08/ufo-over-city-clouds.png",
-    "https://api.time.com/wp-content/uploads/2016/02/150222-ufo-sightings-06.jpg",
-    "https://www.washingtonpost.com/news/morning-mix/wp-content/uploads/sites/21/2015/01/UFO-04-1024x666.jpg",
-    "https://hips.hearstapps.com/hmg-prod/images/vintage-old-black-and-white-ufo-photo-royalty-free-image-1677115000.jpg?resize=1200:*",
-    "https://api.time.com/wp-content/uploads/2016/02/150222-ufo-sightings-06.jpg",
-]
-
-reactions_data = load_reactions()
+# Bot start time for uptime tracking
+bot_start_time = datetime.now()
 
 # --- Independent image loop per guild ---
 async def send_images_to_guild(guild_id: str):
+    """Send UFO images to a specific guild at random intervals."""
     await bot.wait_until_ready()
     while not bot.is_closed():
         config = load_config()
@@ -60,12 +38,24 @@ async def send_images_to_guild(guild_id: str):
             await asyncio.sleep(30)  # check again later
             continue
 
-        channel = bot.get_channel(config[guild_id])
+        # Handle both old format (integer) and new format (dictionary)
+        guild_config = config[guild_id]
+        if isinstance(guild_config, dict):
+            channel_id = guild_config.get("channel_id")
+        else:
+            # Old format - guild_config is just the channel ID integer
+            channel_id = guild_config
+            
+        if channel_id is None:
+            await asyncio.sleep(30)
+            continue
+
+        channel = bot.get_channel(channel_id)
         if channel is None:
             await asyncio.sleep(30)
             continue
 
-        image_url = random.choice(IMAGE_URLS)
+        image_url = get_random_image()
         try:
             message = await channel.send(image_url)
             await message.add_reaction("👽")
@@ -75,51 +65,69 @@ async def send_images_to_guild(guild_id: str):
             print(f"⚠️ Failed in guild {guild_id}: {e}")
 
         # Each guild gets its own random interval
-        INTERVALS = [20 * 60, 30 * 60, 2 * 60 * 60, 1 * 60 * 60]  # in seconds
-        interval = random.choice(INTERVALS)
+        interval = get_random_interval()
         await asyncio.sleep(interval)
 
 @bot.event
 async def on_ready():
+    """Called when the bot is ready."""
     print(f"🤖 Bot is online as {bot.user.name}")
-    await bot.tree.sync()
-    print("Slash commands synced")
+    
+    # Set bot status to DND and activity to "watching for ufos"
+    activity = discord.Activity(type=discord.ActivityType.watching, name="for Aliens")
+    await bot.change_presence(status=discord.Status.dnd, activity=activity)
+    
+    try:
+        synced = await bot.tree.sync()
+        print(f"Slash commands synced: {len(synced)} commands")
+        for cmd in synced:
+            print(f"  - /{cmd.name}: {cmd.description}")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
 
     # Start a separate task for each guild
     for g in bot.guilds:
         bot.loop.create_task(send_images_to_guild(str(g.id)))
 
-# --- Slash commands ---
-@bot.tree.command(name="setchannel", description="Set this channel for image messages")
-@discord.app_commands.checks.has_permissions(manage_guild=True)
-async def setchannel(interaction: discord.Interaction):
-    config = load_config()
-    guild_id = str(interaction.guild.id)
-    config[guild_id] = interaction.channel_id
-    save_config(config)
+@bot.event
+async def on_guild_join(guild):
+    """Send welcome message when bot joins a new server."""
+    print(f"🌟 Joined new guild: {guild.name} (ID: {guild.id})")
+    
+    # Create welcome embed
+    welcome_embed = create_welcome_embed()
+    
+    # Try to find a suitable channel to send the welcome message
+    # Priority: general > announcements > bot-commands > first text channel with permissions
+    target_channel = None
+    
+    # Try common channel names first
+    for channel in guild.text_channels:
+        if channel.name.lower() in ['general', 'announcements', 'bot-commands', 'welcome']:
+            if channel.permissions_for(guild.me).send_messages:
+                target_channel = channel
+                break
+    
+    # If no common channel found, use the first text channel we can send to
+    if not target_channel:
+        for channel in guild.text_channels:
+            if channel.permissions_for(guild.me).send_messages:
+                target_channel = channel
+                break
+    
+    # If we found a suitable channel, send the welcome message
+    if target_channel:
+        try:
+            await target_channel.send(embed=welcome_embed)
+            print(f"✅ Sent welcome message to {guild.name} in #{target_channel.name}")
+        except discord.HTTPException as e:
+            print(f"❌ Failed to send welcome message to {guild.name}: {e}")
+    else:
+        print(f"⚠️ No suitable channel found in {guild.name} to send welcome message")
 
-    await interaction.response.send_message(
-        f"✅ This channel (`#{interaction.channel.name}`) has been set for image messages.",
-        ephemeral=True
-    )
-
-@bot.tree.command(name="testimage", description="Send a test image that deletes after 4 seconds")
-async def testimage(interaction: discord.Interaction):
-    await interaction.response.defer()
-
-    image_url = random.choice(IMAGE_URLS)
-    try:
-        message = await interaction.channel.send(image_url)
-        await message.add_reaction("👽")
-        await asyncio.sleep(4)
-        await message.delete()
-        await interaction.followup.send("✅ Test image sent, reacted, and deleted.", ephemeral=True)
-    except discord.HTTPException as e:
-        await interaction.followup.send(f"❌ Failed: {e}", ephemeral=True)
-
-# --- Reaction tracking ---
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    """Handle reaction tracking for UFO sightings."""
     if str(payload.emoji) != "👽":
         return
     if payload.user_id == bot.user.id:
@@ -140,79 +148,73 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     user_id = str(payload.user_id)
     guild_id = str(payload.guild_id) if payload.guild_id else "dm"
 
+    # Load current reactions data from file
+    reactions_data = load_reactions()
     if guild_id not in reactions_data:
         reactions_data[guild_id] = {}
     if user_id not in reactions_data[guild_id]:
         reactions_data[guild_id][user_id] = 0
 
     reactions_data[guild_id][user_id] += 1
+    # Save updated data back to file
     save_reactions(reactions_data)
+    
+    # Console log
     print(f"👽 Reaction by {user_id} in guild {guild_id}. Total: {reactions_data[guild_id][user_id]}")
+    
+    # Send to Discord logging channel if configured
+    if payload.guild_id:  # Only for guild messages, not DMs
+        log_channel_id = get_log_channel_id(payload.guild_id)
+        if log_channel_id:
+            log_channel = bot.get_channel(log_channel_id)
+            if log_channel:
+                try:
+                    # Get user and guild info for better logging
+                    user = bot.get_user(payload.user_id)
+                    guild = bot.get_guild(payload.guild_id)
+                    
+                    user_name = user.display_name if user else f"User {payload.user_id}"
+                    guild_name = guild.name if guild else f"Guild {payload.guild_id}"
+                    
+                    log_embed = discord.Embed(
+                        title="👽 UFO Sighting Logged",
+                        color=0x00ff41,
+                        timestamp=datetime.now()
+                    )
+                    
+                    log_embed.add_field(
+                        name="👤 User",
+                        value=f"**{user_name}**\n`{payload.user_id}`",
+                        inline=True
+                    )
+                    
+                    log_embed.add_field(
+                        name="🏛️ Server", 
+                        value=f"**{guild_name}**\n`{payload.guild_id}`",
+                        inline=True
+                    )
+                    
+                    log_embed.add_field(
+                        name="📊 Total Count",
+                        value=f"**{reactions_data[guild_id][user_id]}** sightings",
+                        inline=True
+                    )
+                    
+                    log_embed.add_field(
+                        name="📍 Channel",
+                        value=f"<#{payload.channel_id}>",
+                        inline=False
+                    )
+                    
+                    log_embed.set_footer(text="UFO Reaction Tracking System")
+                    
+                    await log_channel.send(embed=log_embed)
+                except Exception as e:
+                    # If logging fails, don't break the main functionality
+                    print(f"Failed to send log to Discord channel: {e}")
 
-@bot.tree.command(name="sightingsseen", description="See how many alien sightings you have reacted to")
-async def sightingsseen(interaction: discord.Interaction):
-    if interaction.guild is None:
-        await interaction.response.send_message("❌ This command must be used in a server.", ephemeral=True)
-        return
+# Set up all command modules
+setup_all_commands(bot, bot_start_time)
 
-    guild_id = str(interaction.guild.id)
-    user_id = str(interaction.user.id)
-
-    guild_data = reactions_data.get(guild_id, {})
-    user_count = guild_data.get(user_id, 0)
-
-    sorted_users = sorted(guild_data.items(), key=lambda item: item[1], reverse=True)
-    top_5 = sorted_users[:5]
-
-    leaderboard_lines = []
-    for i, (uid, count) in enumerate(top_5, start=1):
-        member = interaction.guild.get_member(int(uid))
-        name = member.name if member else f"User ID {uid}"
-        leaderboard_lines.append(f"{i}. **{name}**: {count}")
-
-    leaderboard_text = "\n".join(leaderboard_lines) if leaderboard_lines else "No reactions yet."
-
-    await interaction.response.send_message(
-        f"You have reacted with 👽 **{user_count}** times.\n\n"
-        f"🏆 Top alien sightings in this server:\n{leaderboard_text}",
-        ephemeral=True
-    )
-
-@bot.tree.command(name="globalsightings", description="See your total alien sightings across all servers")
-async def globalsightings(interaction: discord.Interaction):
-    user_id = str(interaction.user.id)
-
-    # Add up counts across all guilds
-    total_count = 0
-    for guild_id, guild_data in reactions_data.items():
-        total_count += guild_data.get(user_id, 0)
-
-    # Build global totals
-    global_totals = {}
-    for guild_id, guild_data in reactions_data.items():
-        for uid, count in guild_data.items():
-            global_totals[uid] = global_totals.get(uid, 0) + count
-
-    sorted_users = sorted(global_totals.items(), key=lambda item: item[1], reverse=True)
-    top_50 = sorted_users[:50]
-
-    leaderboard_lines = []
-    for i, (uid, count) in enumerate(top_50, start=1):
-        member = interaction.guild.get_member(int(uid))
-        if member:
-            name = member.name
-        else:
-            user_obj = bot.get_user(int(uid))
-            name = user_obj.name if user_obj else f"User ID {uid}"
-        leaderboard_lines.append(f"{i}. **{name}**: {count}")
-
-
-    leaderboard_text = "\n".join(leaderboard_lines) if leaderboard_lines else "No reactions yet."
-
-    await interaction.response.send_message(
-        f"You have reacted with 👽 **{total_count}** times across all servers.\n\n"
-        f"🌍 Global top alien spotters:\n{leaderboard_text}",
-        ephemeral=True
-    )
-
-bot.run(token)
+if __name__ == "__main__":
+    bot.run(token)

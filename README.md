@@ -53,10 +53,23 @@ This bot randomly sends UFO images to configured channels and tracks user reacti
 
 ### Slash Commands
 
-- `/setchannel` - Set the current channel for UFO image messages (requires Manage Server permission)
+**User Commands:**
 - `/testimage` - Send a test UFO image that deletes after 4 seconds
-- `/sightingsseen` - View your alien sighting count and server leaderboard
-- `/globalsightings` - View your total sightings across all servers and global leaderboard
+- `/sightingsseen` - View your alien sighting count and server leaderboard (clean embed design)
+- `/globalsightings` - View your total sightings across all servers and global leaderboard (professional layout)
+
+**Restricted Commands:**
+- `/botinfo` - Display comprehensive bot information (requires authorization)
+
+**Setup Commands:**
+- `/setchannel` - Set the current channel for UFO image messages (requires Manage Server permission)
+
+**Admin Commands:**
+- `/sync` - Manually sync slash commands (admin only)
+- `/authorize` - Add a user to the botinfo authorized list (admin only)
+- `/deauthorize` - Remove a user from the botinfo authorized list (admin only)
+- `/listauthorized` - List all users authorized for botinfo (admin only)
+- `/checkreactions` - Check reaction data persistence and statistics (admin only)
 
 ### How to Use
 
@@ -69,27 +82,92 @@ This bot randomly sends UFO images to configured channels and tracks user reacti
 
 ```
 ufo-sighting-bot/
-├── src/                 # Source code
-│   └── ufo_main.py     # Main bot file
-├── data/               # Data files (gitignored)
-│   ├── config.json     # Server configurations
-│   ├── reactions.json  # Reaction tracking data
-│   ├── config.json.example     # Example server config
-│   └── reactions.json.example  # Example reactions file
-├── docs/               # Documentation
-├── run_bot.py          # Bot launcher script
-├── requirements.txt    # Python dependencies
-├── .env.example       # Environment variables template
-├── .gitignore         # Git ignore rules
-└── README.md          # This file
+├── src/                        # Source code
+│   ├── commands/              # Command modules
+│   │   ├── __init__.py       # Commands package init
+│   │   ├── admin.py          # Bot info and admin commands
+│   │   ├── setup.py          # Channel setup and testing
+│   │   └── sightings.py      # Reaction tracking and leaderboards
+│   ├── utils/                # Utility modules
+│   │   ├── __init__.py       # Utils package init
+│   │   ├── auth.py           # User authorization management
+│   │   ├── config.py         # Configuration management
+│   │   └── helpers.py        # Helper functions and constants
+│   ├── ufo_main.py           # Main bot file
+│   └── ufo_main_backup.py    # Backup of original monolithic file
+├── data/                     # Data files (gitignored)
+│   ├── config.json           # Server configurations
+│   ├── reactions.json        # Reaction tracking data
+│   ├── authorized_users.json # User authorization settings
+│   ├── config.json.example   # Example server config
+│   ├── reactions.json.example # Example reactions file
+│   └── authorized_users.json.example # Example auth config
+├── logs/                     # Log files
+├── docs/                     # Documentation
+├── run_bot.py                # Bot launcher script
+├── setup.sh                  # Setup script for new installations
+├── requirements.txt          # Python dependencies
+├── .env.example             # Environment variables template
+├── .gitignore               # Git ignore rules
+└── README.md                # This file
 ```
 
 ## 🛠️ Configuration
 
-The bot automatically creates and manages two configuration files:
+The bot automatically creates and manages several configuration files with **persistent storage**:
 
 - `data/config.json` - Stores channel configurations for each server
-- `data/reactions.json` - Tracks user reaction counts across all servers
+- `data/reactions.json` - Tracks user reaction counts across all servers (survives bot restarts)
+- `data/authorized_users.json` - Controls who can use restricted commands
+
+### 💾 Data Persistence
+
+All user reaction data is automatically saved to disk and persists across bot restarts. The bot:
+- ✅ Loads fresh data from files on each command
+- ✅ Immediately saves changes after each reaction
+- ✅ Maintains accurate counts even after crashes or restarts
+- ✅ Uses file-based storage (no database required)
+
+### 🔐 Authorization System
+
+The bot includes a built-in authorization system for sensitive commands:
+
+**Admin Users** - Can manage other users' permissions and use all admin commands
+**Botinfo Users** - Can use the `/botinfo` command to view bot statistics
+
+**Default Setup:**
+1. On first run, the bot creates `data/authorized_users.json` with your Discord ID as an admin
+2. Admins can use `/authorize @user` to grant botinfo access
+3. Use `/deauthorize @user` to remove access
+4. Use `/listauthorized` to see all authorized users
+
+**Manual Configuration:**
+Edit `data/authorized_users.json`:
+```json
+{
+    "botinfo_users": [123456789012345678, 987654321098765432],
+    "admin_users": [123456789012345678]
+}
+```
+
+## 🏗️ Architecture
+
+The bot follows a modular architecture for better maintainability:
+
+### **Command Modules**
+- `commands/admin.py` - Bot information and admin commands (`/botinfo`, `/sync`)
+- `commands/sightings.py` - Reaction tracking and leaderboards (`/sightingsseen`, `/globalsightings`)
+- `commands/setup.py` - Channel configuration and testing (`/setchannel`, `/testimage`)
+
+### **Utility Modules**
+- `utils/config.py` - Configuration file management
+- `utils/helpers.py` - Helper functions and constants
+
+### **Benefits**
+- **Maintainable**: Each command category has its own file
+- **Extensible**: Easy to add new command modules
+- **Reusable**: Shared utilities avoid code duplication
+- **Organized**: Clear separation of concerns
 
 ## 📜 License
 
