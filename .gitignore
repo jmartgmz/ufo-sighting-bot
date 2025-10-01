@@ -209,8 +209,6 @@ __marimo__/
 # Discord Bot specific
 discord.log
 data/config.json
-data/reactions.json
-data/authorized_users.json
 
 # OS specific
 .DS_Store

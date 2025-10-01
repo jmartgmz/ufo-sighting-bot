@@ -67,17 +67,19 @@ async def send_images_to_guild(guild_id: str):
             message = await channel.send(image_url)
             # Track this message ID so we know it's from the bot even after deletion
             bot_ufo_messages[message.id] = guild_id
-            print(f"📤 Sent UFO image in guild {guild_id}, message ID: {message.id}")
+            print(f"📤 Sent UFO image in guild {guild_id}, message ID: {message.id} - now tracking for reactions")
             
             await message.add_reaction("👽")
+            print(f"🤖 Bot added 👽 reaction to UFO message {message.id}")
             await asyncio.sleep(4)  # how long the image stays
             await message.delete()
+            print(f"🗑️ UFO message {message.id} deleted after 4 seconds")
             
             # Keep message ID in memory for 60 more seconds to catch late reactions
             await asyncio.sleep(60)
             if message.id in bot_ufo_messages:
                 del bot_ufo_messages[message.id]
-                print(f"🗑️ Cleaned up message ID {message.id} from tracking")
+                print(f"🧹 Cleaned up message ID {message.id} from tracking after 60s")
         except discord.HTTPException as e:
             print(f"⚠️ Failed in guild {guild_id}: {e}")
 
@@ -159,6 +161,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
 
     # Prevent duplicate reactions within 5 seconds
     import time
+    global recent_reactions
     current_time = time.time()
     reaction_key = (payload.user_id, payload.message_id, str(payload.emoji))
     
