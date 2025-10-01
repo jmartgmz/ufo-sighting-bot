@@ -237,7 +237,7 @@ def setup_admin_commands(bot, bot_start_time):
         embed.set_footer(text="Data loaded fresh from reactions.json")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="setlogchannel", description="Set a channel to receive bot activity logs (Admin only)")
+    @bot.tree.command(name="setlogchannel", description="Set the global logging channel for all servers (Admin only)")
     async def setlogchannel(interaction: discord.Interaction, channel: discord.TextChannel = None):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -258,33 +258,26 @@ def setup_admin_commands(bot, bot_start_time):
         if channel is None:
             channel = interaction.channel
 
-        guild_id = str(interaction.guild.id)
-        
-        # Load config and update logging channel
-        from utils import load_config, save_config
-        config = load_config()
-        
-        # Ensure guild_id exists and is a dictionary
-        if guild_id not in config:
-            config[guild_id] = {}
-        elif not isinstance(config[guild_id], dict):
-            # If it's not a dict (old format with just channel_id as integer), convert it
-            old_channel_id = config[guild_id]
-            config[guild_id] = {"channel_id": old_channel_id}  # Preserve old channel_id for /setchannel
-        
-        config[guild_id]["log_channel_id"] = channel.id
-        save_config(config)
+        # Set the global log channel (logs activity from ALL servers)
+        from utils import set_global_log_channel_id
+        set_global_log_channel_id(channel.id)
 
         embed = discord.Embed(
-            title="🔧 Logging Channel Set",
-            description=f"Bot activity logs will now be sent to {channel.mention}",
+            title="🌍 Global Logging Channel Set",
+            description=f"Bot activity from **all servers** will now be sent to {channel.mention}",
             color=0x00ff41,
             timestamp=datetime.now()
         )
 
         embed.add_field(
             name="📋 What gets logged:",
-            value="• UFO reaction events\n• Guild activity\n• User interaction stats\n• Error notifications",
+            value="• UFO reaction events from all servers\n• User interaction stats globally\n• Server join/leave events\n• Error notifications",
+            inline=False
+        )
+
+        embed.add_field(
+            name="🌐 Global Logging:",
+            value="This channel will receive activity logs from every server the bot is in, not just this one.",
             inline=False
         )
 
@@ -304,17 +297,17 @@ def setup_admin_commands(bot, bot_start_time):
         # Send a test message to the logging channel
         try:
             test_embed = discord.Embed(
-                title="📡 Logging Channel Activated",
-                description="This channel is now receiving UFO Sighting Bot activity logs.",
+                title="🌍 Global Logging Channel Activated",
+                description="This channel is now receiving UFO Sighting Bot activity logs **from all servers**.",
                 color=0x4169E1,
                 timestamp=datetime.now()
             )
             test_embed.add_field(
-                name="🚀 Ready to track:",
-                value="UFO reactions, guild activity, and more!",
+                name="🚀 Now tracking globally:",
+                value=f"• Reactions from {len(bot.guilds)} servers\n• User activity across all servers\n• Server join/leave events",
                 inline=False
             )
-            test_embed.set_footer(text="UFO Sighting Bot Logging System")
+            test_embed.set_footer(text="UFO Sighting Bot Global Logging System")
             
             await channel.send(embed=test_embed)
         except discord.Forbidden:

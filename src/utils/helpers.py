@@ -52,7 +52,7 @@ def create_welcome_embed():
     embed.add_field(
         name="📋 What I Do",
         value="• Send random UFO images at random intervals\n"
-              "• Track 👽 reactions as \"sightings\"\n"
+              "• Track any emoji reactions as \"sightings\"\n"
               "• Provide leaderboards for top alien spotters\n"
               "• Offer admin tools for bot management",
         inline=False
@@ -80,7 +80,7 @@ def create_welcome_embed():
         name="🎯 How It Works",
         value="1. Set a channel with `/setchannel`\n"
               "2. I'll start posting UFO images randomly\n"
-              "3. Users react with 👽 to log sightings\n"
+              "3. Users react with any emoji to log sightings\n"
               "4. Check leaderboards to see top spotters!",
         inline=False
     )

@@ -35,25 +35,24 @@ def save_reactions(data):
     with open(REACTIONS_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-def get_log_channel_id(guild_id):
-    """Get the logging channel ID for a guild."""
+def get_global_log_channel_id():
+    """Get the global logging channel ID that logs activity from all servers."""
     config = load_config()
-    guild_config = config.get(str(guild_id), {})
-    
-    # Handle both old format (integer) and new format (dictionary)
-    if isinstance(guild_config, dict):
-        return guild_config.get("log_channel_id")
-    else:
-        # Old format - guild_config is just the channel ID integer
-        return None
+    return config.get("global_log_channel_id")
 
-def set_log_channel_id(guild_id, channel_id):
-    """Set the logging channel ID for a guild."""
+def set_global_log_channel_id(channel_id):
+    """Set the global logging channel ID for all servers."""
     config = load_config()
-    guild_id_str = str(guild_id)
-    
-    if guild_id_str not in config:
-        config[guild_id_str] = {}
-    
-    config[guild_id_str]["log_channel_id"] = channel_id
+    config["global_log_channel_id"] = channel_id
+    save_config(config)
+
+def get_global_log_channel_id():
+    """Get the global logging channel ID that receives logs from all servers."""
+    config = load_config()
+    return config.get("global_log_channel_id")
+
+def set_global_log_channel_id(channel_id):
+    """Set the global logging channel ID for all servers."""
+    config = load_config()
+    config["global_log_channel_id"] = channel_id
     save_config(config)

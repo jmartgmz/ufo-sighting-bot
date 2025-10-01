@@ -19,6 +19,7 @@ def setup_help_commands(bot):
 
         # User commands
         user_commands = [
+            "`/usersightings` - See your UFO sightings across all servers (or check another user)",
             "`/localsightings` - See your UFO sightings in this server",
             "`/globalsightings` - See your total sightings across all servers",
             "`/support <message>` - Send a support request to administrators",
@@ -46,7 +47,7 @@ def setup_help_commands(bot):
 
         embed.add_field(
             name="ℹ️ How it works",
-            value="React to UFO images with any emoji to track your sightings!\nUse `/localsightings` to see your progress.",
+            value="React to UFO images with any emoji to track your sightings!\nUse `/usersightings` to see your progress across all servers.",
             inline=False
         )
 
@@ -118,7 +119,7 @@ def setup_help_commands(bot):
             "`/deauthorize <user>` - Remove user from the admin list",
             "`/listauthorized` - List all admin users",
             "`/checkreactions` - Check reaction data persistence",
-            "`/setlogchannel [channel]` - Set channel for bot activity logs",
+            "`/setlogchannel [channel]` - Set global logging channel (logs all servers)",
             "`/supportchannel [channel]` - Set channel for support requests",
             "`/reply <ticket_id> <response>` - Reply to a support ticket",
             "`/globalmessage <message>` - Send a message to all servers",

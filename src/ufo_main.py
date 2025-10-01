@@ -10,7 +10,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Import our custom modules
-from utils import load_config, load_reactions, save_reactions, get_random_image, get_random_interval, get_log_channel_id, create_welcome_embed
+from utils import load_config, load_reactions, save_reactions, get_random_image, get_random_interval, get_global_log_channel_id, create_welcome_embed
 from commands import setup_all_commands
 
 # Load environment variables
@@ -27,6 +27,13 @@ bot = commands.Bot(command_prefix="ufo ", intents=intents)
 
 # Bot start time for uptime tracking
 bot_start_time = datetime.now()
+
+# Duplicate reaction prevention - track recent reactions
+recent_reactions = {}  # Format: {(user_id, message_id, emoji): timestamp}
+
+# Track bot's UFO messages (message_id -> guild_id) for reaction tracking
+# We keep messages in memory for 60 seconds after deletion to handle late reactions
+bot_ufo_messages = {}
 
 # --- Independent image loop per guild ---
 async def send_images_to_guild(guild_id: str):
@@ -58,9 +65,19 @@ async def send_images_to_guild(guild_id: str):
         image_url = get_random_image()
         try:
             message = await channel.send(image_url)
+            # Track this message ID so we know it's from the bot even after deletion
+            bot_ufo_messages[message.id] = guild_id
+            print(f"📤 Sent UFO image in guild {guild_id}, message ID: {message.id}")
+            
             await message.add_reaction("👽")
             await asyncio.sleep(4)  # how long the image stays
             await message.delete()
+            
+            # Keep message ID in memory for 60 more seconds to catch late reactions
+            await asyncio.sleep(60)
+            if message.id in bot_ufo_messages:
+                del bot_ufo_messages[message.id]
+                print(f"🗑️ Cleaned up message ID {message.id} from tracking")
         except discord.HTTPException as e:
             print(f"⚠️ Failed in guild {guild_id}: {e}")
 
@@ -128,22 +145,62 @@ async def on_guild_join(guild):
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """Handle reaction tracking for UFO sightings."""
-    if str(payload.emoji) != "👽":
-        return
+    # Debug logging
+    print(f"🔍 Reaction detected: {payload.emoji} by user {payload.user_id} on message {payload.message_id}")
+    
+    # Accept any emoji, not just alien emoji (this was the bug!)
+    # Original code only tracked 👽 but users react with any emoji
+    # if str(payload.emoji) != "👽":
+    #     return
+    
     if payload.user_id == bot.user.id:
+        print(f"⏭️ Skipping bot's own reaction")
         return
+
+    # Prevent duplicate reactions within 5 seconds
+    import time
+    current_time = time.time()
+    reaction_key = (payload.user_id, payload.message_id, str(payload.emoji))
+    
+    if reaction_key in recent_reactions:
+        time_diff = current_time - recent_reactions[reaction_key]
+        if time_diff < 5:  # 5 second window
+            print(f"🔄 Duplicate reaction detected (within {time_diff:.1f}s) - skipping")
+            return
+    
+    # Record this reaction
+    recent_reactions[reaction_key] = current_time
+    
+    # Clean up old entries (older than 10 seconds)
+    cutoff_time = current_time - 10
+    recent_reactions = {k: v for k, v in recent_reactions.items() if v > cutoff_time}
 
     channel = bot.get_channel(payload.channel_id)
     if channel is None:
+        print(f"❌ Channel {payload.channel_id} not found")
         return
 
-    try:
-        message = await channel.fetch_message(payload.message_id)
-    except Exception:
-        return
-
-    if message.author.id != bot.user.id:
-        return
+    # Check if this message is in our tracked UFO messages (even if deleted)
+    is_bot_ufo_message = payload.message_id in bot_ufo_messages
+    
+    if is_bot_ufo_message:
+        # This is definitely one of our UFO messages (even if deleted now)
+        print(f"✅ Reaction to tracked UFO message {payload.message_id} (deleted: likely)")
+    else:
+        # Try to fetch the message to verify it's from the bot
+        try:
+            message = await channel.fetch_message(payload.message_id)
+            if message.author.id != bot.user.id:
+                print(f"⏭️ Skipping reaction to non-bot message from {message.author.id}")
+                return
+            print(f"✅ Found message from bot, content: {message.content[:50]}...")
+        except discord.NotFound:
+            # Message was deleted and we don't have it tracked - skip it
+            print(f"⏭️ Skipping reaction to deleted untracked message {payload.message_id}")
+            return
+        except Exception as e:
+            print(f"❌ Could not fetch message {payload.message_id}: {e}")
+            return
 
     user_id = str(payload.user_id)
     guild_id = str(payload.guild_id) if payload.guild_id else "dm"
@@ -152,6 +209,11 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     reactions_data = load_reactions()
     if guild_id not in reactions_data:
         reactions_data[guild_id] = {}
+    
+    # Check current count before incrementing
+    current_count = reactions_data[guild_id].get(user_id, 0)
+    print(f"📊 User {user_id} current count: {current_count} -> {current_count + 1}")
+    
     if user_id not in reactions_data[guild_id]:
         reactions_data[guild_id][user_id] = 0
 
@@ -159,61 +221,67 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     # Save updated data back to file
     save_reactions(reactions_data)
     
-    # Console log
-    print(f"👽 Reaction by {user_id} in guild {guild_id}. Total: {reactions_data[guild_id][user_id]}")
+    # Console log with more detail
+    print(f"👽 SIGHTING TRACKED! Reaction by {user_id} in guild {guild_id}. Total: {reactions_data[guild_id][user_id]}")
+    print(f"   Emoji: {payload.emoji}, Message ID: {payload.message_id}")
     
-    # Send to Discord logging channel if configured
+    # Create log embed (used for both per-server and global logging)
     if payload.guild_id:  # Only for guild messages, not DMs
-        log_channel_id = get_log_channel_id(payload.guild_id)
-        if log_channel_id:
-            log_channel = bot.get_channel(log_channel_id)
-            if log_channel:
-                try:
-                    # Get user and guild info for better logging
-                    user = bot.get_user(payload.user_id)
-                    guild = bot.get_guild(payload.guild_id)
-                    
-                    user_name = user.display_name if user else f"User {payload.user_id}"
-                    guild_name = guild.name if guild else f"Guild {payload.guild_id}"
-                    
-                    log_embed = discord.Embed(
-                        title="👽 UFO Sighting Logged",
-                        color=0x00ff41,
-                        timestamp=datetime.now()
-                    )
-                    
-                    log_embed.add_field(
-                        name="👤 User",
-                        value=f"**{user_name}**\n`{payload.user_id}`",
-                        inline=True
-                    )
-                    
-                    log_embed.add_field(
-                        name="🏛️ Server", 
-                        value=f"**{guild_name}**\n`{payload.guild_id}`",
-                        inline=True
-                    )
-                    
-                    log_embed.add_field(
-                        name="📊 Total Count",
-                        value=f"**{reactions_data[guild_id][user_id]}** sightings",
-                        inline=True
-                    )
-                    
-                    log_embed.add_field(
-                        name="📍 Channel",
-                        value=f"<#{payload.channel_id}>",
-                        inline=False
-                    )
-                    
-                    log_embed.set_footer(text="UFO Reaction Tracking System")
-                    
-                    await log_channel.send(embed=log_embed)
-                except Exception as e:
-                    # If logging fails, don't break the main functionality
-                    print(f"Failed to send log to Discord channel: {e}")
-
-# Set up all command modules
+        # Get user and guild info for better logging
+        user = bot.get_user(payload.user_id)
+        guild = bot.get_guild(payload.guild_id)
+        
+        user_name = user.display_name if user else f"User {payload.user_id}"
+        guild_name = guild.name if guild else f"Guild {payload.guild_id}"
+        
+        log_embed = discord.Embed(
+            title="👽 UFO Sighting Logged",
+            color=0x00ff41,
+            timestamp=datetime.now()
+        )
+        
+        log_embed.add_field(
+            name="👤 User",
+            value=f"**{user_name}**\n`{payload.user_id}`",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🏛️ Server", 
+            value=f"**{guild_name}**\n`{payload.guild_id}`",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="📊 Total Count",
+            value=f"**{reactions_data[guild_id][user_id]}** sightings",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="📍 Channel",
+            value=f"<#{payload.channel_id}>",
+            inline=False
+        )
+        
+        log_embed.add_field(
+            name="😀 Emoji Used",
+            value=f"{payload.emoji}",
+            inline=True
+        )
+        
+    log_embed.set_footer(text="UFO Reaction Tracking System")
+    
+    # Send to global logging channel if configured (logs all servers)
+    global_log_channel_id = get_global_log_channel_id()
+    if global_log_channel_id:
+        global_log_channel = bot.get_channel(global_log_channel_id)
+        if global_log_channel:
+            try:
+                await global_log_channel.send(embed=log_embed)
+                print(f"   ✅ Logged to global channel")
+            except Exception as e:
+                print(f"Failed to send log to global log channel: {e}")# Set up all command modules
 setup_all_commands(bot, bot_start_time)
 
 if __name__ == "__main__":
