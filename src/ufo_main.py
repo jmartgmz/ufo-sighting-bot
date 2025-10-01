@@ -61,9 +61,6 @@ async def send_images_to_guild(guild_id: str):
         if channel is None:
             await asyncio.sleep(30)
             continue
-        
-        tempInterval = get_random_interval
-        asyncio.sleep(tempInterval)
 
         image_url = get_random_image()
         try:
