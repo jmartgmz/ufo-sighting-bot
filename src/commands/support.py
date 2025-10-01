@@ -354,3 +354,30 @@ def setup_support_commands(bot):
                 f"❌ An error occurred while sending the reply: {str(e)}",
                 ephemeral=True
             )
+    # Close Tickets since they can just stay up (comment out if it dont work)
+    @bot.tree.command(name="closeticket", description="Close one of your support tickets")
+    async def close_ticket(interaction: discord.Interaction, ticket_id: str):
+        config = load_config()
+        tickets = config.get("support_tickets", {})
+
+        if ticket_id not in tickets:
+            await interaction.response.send_message(
+                f"❌ Ticket `{ticket_id}` not found.", ephemeral=True
+            )
+            return
+        
+        ticket = tickets[ticket_id]
+        if ticket["user_id"] != interaction.user.id:
+            await interaction.response.send_message(
+                "❌ You can only close your own tickets.", ephemeral=True
+            )
+            return
+        
+        # Mark as closed
+        tickets[ticket_id]["status"] = "closed_by_user"
+        tickets[ticket_id]["closed_timestamp"] = datetime.now().isoformat()
+        save_config(config)
+
+        await interaction.response.send_message(
+            f"✅ Your ticket `{ticket_id}` has been closed.", ephemeral=True
+        )
