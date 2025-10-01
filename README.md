@@ -13,7 +13,7 @@ This bot randomly sends UFO images to configured channels and tracks user reacti
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/ufo-sighting-bot.git
+   git clone https://github.com/jmartgmz/ufo-sighting-bot.git
    cd ufo-sighting-bot
    ```
 
@@ -49,34 +49,12 @@ This bot randomly sends UFO images to configured channels and tracks user reacti
 7. Select permissions: `Send Messages`, `Add Reactions`, `Manage Messages`, `Use Slash Commands`
 8. Invite the bot to your server using the generated URL
 
-## 🎮 Commands
-
-### Slash Commands
-
-**User Commands:**
-- `/testimage` - Send a test UFO image that deletes after 4 seconds
-- `/sightingsseen` - View your alien sighting count and server leaderboard (clean embed design)
-- `/globalsightings` - View your total sightings across all servers and global leaderboard (professional layout)
-
-**Restricted Commands:**
-- `/botinfo` - Display comprehensive bot information (requires authorization)
-
-**Setup Commands:**
-- `/setchannel` - Set the current channel for UFO image messages (requires Manage Server permission)
-
-**Admin Commands:**
-- `/sync` - Manually sync slash commands (admin only)
-- `/authorize` - Add a user to the botinfo authorized list (admin only)
-- `/deauthorize` - Remove a user from the botinfo authorized list (admin only)
-- `/listauthorized` - List all users authorized for botinfo (admin only)
-- `/checkreactions` - Check reaction data persistence and statistics (admin only)
-
 ### How to Use
 
 1. Use `/setchannel` in the channel where you want UFO images to appear
 2. The bot will start sending random UFO images at random intervals
 3. React with 👽 to the images to track your sightings
-4. Check your progress with `/sightingsseen` or `/globalsightings`
+4. Check your progress with `/usersightings` or `/globalsightings`
 
 ## 📁 Project Structure
 
@@ -120,14 +98,6 @@ The bot automatically creates and manages several configuration files with **per
 - `data/reactions.json` - Tracks user reaction counts across all servers (survives bot restarts)
 - `data/authorized_users.json` - Controls who can use restricted commands
 
-### 💾 Data Persistence
-
-All user reaction data is automatically saved to disk and persists across bot restarts. The bot:
-- ✅ Loads fresh data from files on each command
-- ✅ Immediately saves changes after each reaction
-- ✅ Maintains accurate counts even after crashes or restarts
-- ✅ Uses file-based storage (no database required)
-
 ### 🔐 Authorization System
 
 The bot includes a built-in authorization system for sensitive commands:
@@ -140,34 +110,6 @@ The bot includes a built-in authorization system for sensitive commands:
 2. Admins can use `/authorize @user` to grant botinfo access
 3. Use `/deauthorize @user` to remove access
 4. Use `/listauthorized` to see all authorized users
-
-**Manual Configuration:**
-Edit `data/authorized_users.json`:
-```json
-{
-    "botinfo_users": [123456789012345678, 987654321098765432],
-    "admin_users": [123456789012345678]
-}
-```
-
-## 🏗️ Architecture
-
-The bot follows a modular architecture for better maintainability:
-
-### **Command Modules**
-- `commands/admin.py` - Bot information and admin commands (`/botinfo`, `/sync`)
-- `commands/sightings.py` - Reaction tracking and leaderboards (`/sightingsseen`, `/globalsightings`)
-- `commands/setup.py` - Channel configuration and testing (`/setchannel`, `/testimage`)
-
-### **Utility Modules**
-- `utils/config.py` - Configuration file management
-- `utils/helpers.py` - Helper functions and constants
-
-### **Benefits**
-- **Maintainable**: Each command category has its own file
-- **Extensible**: Easy to add new command modules
-- **Reusable**: Shared utilities avoid code duplication
-- **Organized**: Clear separation of concerns
 
 ## 📜 License
 
