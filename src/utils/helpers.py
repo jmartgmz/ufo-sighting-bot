@@ -3,6 +3,9 @@ Helper utilities and constants for the UFO Sighting Bot.
 """
 import random
 import discord
+import io
+import aiohttp
+from PIL import Image, ImageOps, ImageEnhance
 from datetime import datetime
 
 # UFO image URLs
@@ -12,14 +15,101 @@ IMAGE_URLS = [
     "https://api.time.com/wp-content/uploads/2016/02/150222-ufo-sightings-06.jpg",
     "https://www.washingtonpost.com/news/morning-mix/wp-content/uploads/sites/21/2015/01/UFO-04-1024x666.jpg",
     "https://hips.hearstapps.com/hmg-prod/images/vintage-old-black-and-white-ufo-photo-royalty-free-image-1677115000.jpg?resize=1200:*",
-    "https://api.time.com/wp-content/uploads/2016/02/150222-ufo-sightings-06.jpg",
+    "https://assets.newsweek.com/wp-content/uploads/2025/08/2097556-ufo-calvine-photo.jpg",
+    "https://platform.vox.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/25440927/GettyImages_875509_001.jpg?quality=90&strip=all&crop=0.078124999999993%2C0%2C99.84375%2C100&w=750",
+    "https://cdn.britannica.com/57/200357-050-EC210F98/Ufo-alien-space-trees.jpg?w=300",
+
+]
+
+# Image effects that can be applied randomly
+IMAGE_EFFECTS = [""
+    "normal",      # 60% chance - no effect (most common)
+    "normal",
+    "normal", 
+    "normal",
+    "normal",
+    "normal",
+    "invert",      # 15% chance - invert colors
+    "invert",
+    "greenscale",  # 10% chance - green tint (alien theme) - reduced frequency
+    "vintage",     # 10% chance - sepia/vintage look
+    "enhanced"     # 5% chance - enhanced contrast/brightness
 ]
 
 # Random intervals for image posting (in seconds)
 INTERVALS = [20 * 60, 30 * 60, 2 * 60 * 60, 1 * 60 * 60]  # 20m, 30m, 2h, 1h
 
+async def apply_image_effect(image_url, effect):
+    """Apply visual effects to UFO images for enhanced alien atmosphere."""
+    if effect == "normal":
+        return image_url
+    
+    try:
+        # Download the image
+        async with aiohttp.ClientSession() as session:
+            async with session.get(image_url) as response:
+                if response.status != 200:
+                    return image_url  # Return original URL if download fails
+                
+                image_data = await response.read()
+        
+        # Process the image with PIL
+        with Image.open(io.BytesIO(image_data)) as img:
+            # Convert to RGB if necessary
+            if img.mode in ('RGBA', 'LA', 'P'):
+                img = img.convert('RGB')
+            
+            # Apply the selected effect
+            if effect == "invert":
+                img = ImageOps.invert(img)
+            elif effect == "greenscale":
+                # Convert to grayscale then tint green (alien theme)
+                img = ImageOps.grayscale(img)
+                img = img.convert('RGB')
+                # Apply green tint
+                enhancer = ImageEnhance.Color(img)
+                img = enhancer.enhance(0.3)  # Reduce saturation
+                # Add green overlay
+                green_overlay = Image.new('RGB', img.size, (0, 255, 0))
+                img = Image.blend(img, green_overlay, 0.2)
+            elif effect == "vintage":
+                # Sepia/vintage effect
+                img = ImageOps.grayscale(img)
+                img = img.convert('RGB')
+                # Apply sepia tint
+                sepia_overlay = Image.new('RGB', img.size, (255, 218, 185))
+                img = Image.blend(img, sepia_overlay, 0.3)
+            elif effect == "enhanced":
+                # Enhance contrast and brightness
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.5)
+                enhancer = ImageEnhance.Brightness(img)
+                img = enhancer.enhance(1.2)
+            
+            # Save processed image to bytes
+            img_bytes = io.BytesIO()
+            img.save(img_bytes, format='PNG', quality=95)
+            img_bytes.seek(0)
+            
+            # Return the processed image as Discord file
+            return discord.File(img_bytes, filename=f"ufo_{effect}.png")
+            
+    except Exception as e:
+        print(f"⚠️ Failed to apply image effect '{effect}': {e}")
+        return image_url  # Return original URL if processing fails
+
+async def get_random_image_with_effect():
+    """Get a random UFO image with a randomly applied effect."""
+    base_url = random.choice(IMAGE_URLS)
+    effect = random.choice(IMAGE_EFFECTS)
+    
+    print(f"🎨 Applying effect '{effect}' to UFO image")
+    
+    # Apply effect and return either URL or Discord File
+    return await apply_image_effect(base_url, effect)
+
 def get_random_image():
-    """Get a random UFO image URL."""
+    """Get a random UFO image URL (legacy function for compatibility)."""
     return random.choice(IMAGE_URLS)
 
 def get_random_interval():

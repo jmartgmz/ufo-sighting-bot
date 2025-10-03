@@ -43,9 +43,18 @@ def setup_setup_commands(bot):
             
         await interaction.response.defer()
 
-        image_url = get_random_image()
+        # Get image with random effect applied
+        from utils.helpers import get_random_image_with_effect
+        image_content = await get_random_image_with_effect()
         try:
-            message = await interaction.channel.send(image_url)
+            # Send either URL string or Discord File
+            if isinstance(image_content, str):
+                message = await interaction.channel.send(image_content)
+                image_url = image_content
+            else:  # Discord File object
+                message = await interaction.channel.send(file=image_content)
+                image_url = f"[Test UFO Image with effects]"
+            
             # Track this test message too so reactions count
             from ufo_main import bot_ufo_messages, log_image_sent
             bot_ufo_messages[message.id] = str(interaction.guild.id) if interaction.guild else "dm"

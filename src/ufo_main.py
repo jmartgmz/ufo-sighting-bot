@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 # Import our custom modules
 from utils import load_config, load_reactions, save_reactions, get_random_image, get_random_interval, get_global_log_channel_id, create_welcome_embed
+from utils.helpers import get_random_image_with_effect
 from commands import setup_all_commands
 
 # Load environment variables
@@ -118,9 +119,17 @@ async def send_images_to_guild(guild_id: str):
         tempInterval = get_random_interval
         asyncio.sleep(tempInterval)
 
-        image_url = get_random_image()
+        # Get image with random effect applied
+        image_content = await get_random_image_with_effect()
         try:
-            message = await channel.send(image_url)
+            # Send either URL string or Discord File
+            if isinstance(image_content, str):
+                message = await channel.send(image_content)
+                image_url = image_content
+            else:  # Discord File object
+                message = await channel.send(file=image_content)
+                image_url = f"[Processed UFO Image with effects]"
+            
             # Track this message ID so we know it's from the bot even after deletion
             bot_ufo_messages[message.id] = guild_id
             print(f"📤 Sent UFO image in guild {guild_id}, message ID: {message.id} - now tracking for reactions")
