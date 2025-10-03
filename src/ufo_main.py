@@ -35,6 +35,58 @@ recent_reactions = {}  # Format: {(user_id, message_id, emoji): timestamp}
 # We keep messages in memory for 60 seconds after deletion to handle late reactions
 bot_ufo_messages = {}
 
+async def log_image_sent(channel, message, image_url):
+    """Log when the bot sends a UFO image to the global logging channel."""
+    global_log_channel_id = get_global_log_channel_id()
+    if not global_log_channel_id:
+        return
+    
+    global_log_channel = bot.get_channel(global_log_channel_id)
+    if not global_log_channel:
+        return
+    
+    try:
+        # Create embed for image sent log
+        log_embed = discord.Embed(
+            title="🛸 UFO Image Sent",
+            description=f"Bot sent a UFO image to track alien sightings",
+            color=0x9370DB,  # Purple color for image sent logs
+            timestamp=datetime.now()
+        )
+        
+        log_embed.add_field(
+            name="📺 Channel",
+            value=f"{channel.mention} (`{channel.name}`)",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🏛️ Server",
+            value=f"**{channel.guild.name}**\n`{channel.guild.id}`",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🔗 Message ID",
+            value=f"`{message.id}`",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🖼️ Image URL",
+            value=f"[View Image]({image_url})",
+            inline=False
+        )
+        
+        log_embed.set_footer(text="UFO Image Deployment System")
+        log_embed.set_thumbnail(url=image_url)  # Show the image as thumbnail
+        
+        await global_log_channel.send(embed=log_embed)
+        print(f"   📡 Image send logged to global channel")
+        
+    except Exception as e:
+        print(f"Failed to log image send to global channel: {e}")
+
 # --- Independent image loop per guild ---
 async def send_images_to_guild(guild_id: str):
     """Send UFO images to a specific guild at random intervals."""
@@ -72,6 +124,9 @@ async def send_images_to_guild(guild_id: str):
             # Track this message ID so we know it's from the bot even after deletion
             bot_ufo_messages[message.id] = guild_id
             print(f"📤 Sent UFO image in guild {guild_id}, message ID: {message.id} - now tracking for reactions")
+            
+            # Log image sending to global channel
+            await log_image_sent(channel, message, image_url)
             
             await message.add_reaction("👽")
             print(f"🤖 Bot added 👽 reaction to UFO message {message.id}")

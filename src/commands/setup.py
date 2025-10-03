@@ -47,9 +47,12 @@ def setup_setup_commands(bot):
         try:
             message = await interaction.channel.send(image_url)
             # Track this test message too so reactions count
-            from ufo_main import bot_ufo_messages
+            from ufo_main import bot_ufo_messages, log_image_sent
             bot_ufo_messages[message.id] = str(interaction.guild.id) if interaction.guild else "dm"
             print(f"🧪 Test image sent (Message ID: {message.id}) - now tracking for reactions")
+            
+            # Log test image sending to global channel
+            await log_image_sent(interaction.channel, message, image_url)
             
             await message.add_reaction("👽")
             print(f"🤖 Bot added 👽 reaction to test message {message.id}")
