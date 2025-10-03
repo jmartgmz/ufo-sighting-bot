@@ -197,46 +197,6 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="checkreactions", description="Check reaction data persistence (Admin only)")
-    async def check_reactions(interaction: discord.Interaction):
-        # Check if user is admin
-        if not is_admin_user(interaction.user.id):
-            await interaction.response.send_message("❌ Only admins can check reaction data.", ephemeral=True)
-            return
-        
-        reactions_data = load_reactions()
-        total_reactions = sum(sum(guild_data.values()) for guild_data in reactions_data.values())
-        total_guilds = len(reactions_data)
-        total_users = len(set(uid for guild_data in reactions_data.values() for uid in guild_data.keys()))
-        
-        embed = discord.Embed(
-            title="📊 Reaction Data Status",
-            color=0x00ff00,
-            timestamp=datetime.now()
-        )
-        embed.add_field(name="Total Reactions", value=f"{total_reactions:,}", inline=True)
-        embed.add_field(name="Servers with Data", value=f"{total_guilds}", inline=True)
-        embed.add_field(name="Unique Users", value=f"{total_users}", inline=True)
-        
-        # Show some sample data
-        if reactions_data:
-            sample_data = []
-            for guild_id, guild_data in list(reactions_data.items())[:3]:
-                for user_id, count in list(guild_data.items())[:2]:
-                    user = bot.get_user(int(user_id))
-                    name = user.display_name if user else f"User {user_id}"
-                    sample_data.append(f"• {name}: {count} reactions")
-            
-            if sample_data:
-                embed.add_field(
-                    name="Sample Data",
-                    value="\n".join(sample_data[:5]) + ("..." if len(sample_data) > 5 else ""),
-                    inline=False
-                )
-        
-        embed.set_footer(text="Data loaded fresh from reactions.json")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
     @bot.tree.command(name="setlogchannel", description="Set the global logging channel for all servers (Admin only)")
     async def setlogchannel(interaction: discord.Interaction, channel: discord.TextChannel = None):
         # Check if user is admin

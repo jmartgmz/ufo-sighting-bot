@@ -22,6 +22,7 @@ def setup_help_commands(bot):
             "`/usersightings` - See your UFO sightings across all servers (or check another user)",
             "`/localsightings` - See your UFO sightings in this server",
             "`/globalsightings` - See your total sightings across all servers",
+            "`/alien <message>` - Chat with an alien from Kepler-442b using AI",
             "`/support <message>` - Send a support request to administrators",
             "`/help` - Show this help message",
             "`/helpadmin` - Show admin commands (if you're an admin)"
@@ -118,7 +119,6 @@ def setup_help_commands(bot):
             "`/authorize <user>` - Add user to the admin list",
             "`/deauthorize <user>` - Remove user from the admin list",
             "`/listauthorized` - List all admin users",
-            "`/checkreactions` - Check reaction data persistence",
             "`/setlogchannel [channel]` - Set global logging channel (logs all servers)",
             "`/supportchannel [channel]` - Set channel for support requests",
             "`/reply <ticket_id> <response>` - Reply to a support ticket",
