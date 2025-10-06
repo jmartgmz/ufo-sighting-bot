@@ -279,7 +279,7 @@ def setup_admin_commands(bot, bot_start_time):
             )
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-    @bot.tree.command(name="globalmessage", description="Send global message")
+    @bot.tree.command(name="globalmessage", description="Send global message (admin)")
     async def global_message(interaction: discord.Interaction, message: str):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
