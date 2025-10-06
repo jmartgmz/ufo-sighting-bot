@@ -7,7 +7,7 @@ from datetime import datetime
 from utils.auth import is_admin_user
 from utils import (
     load_config, save_config, load_reactions, save_reactions, is_admin_user,
-    create_ticket, get_ticket, close_ticket, delete_ticket, get_open_tickets
+    create_ticket, get_ticket, delete_ticket, get_open_tickets
 )
 
 def setup_support_commands(bot):
@@ -310,13 +310,8 @@ def setup_support_commands(bot):
         try:
             await user.send(embed=user_embed)
             
-            # Update ticket status using new system
-            close_ticket(
-                ticket_id=ticket_id,
-                closed_by="admin",
-                admin_response=response,
-                admin_responder=interaction.user.display_name
-            )
+            # Delete ticket after admin response (ticket is resolved)
+            delete_ticket(ticket_id)
             
             # Confirm to admin
             admin_embed = discord.Embed(
@@ -358,7 +353,7 @@ def setup_support_commands(bot):
                 f"❌ An error occurred while sending the reply: {str(e)}",
                 ephemeral=True
             )
-    @bot.tree.command(name="closeticket", description="Close one of your support tickets")
+    @bot.tree.command(name="closeticket", description="Close and delete one of your support tickets")
     async def close_ticket_cmd(interaction: discord.Interaction, ticket_id: str):
         ticket = get_ticket(ticket_id)
 
@@ -375,53 +370,16 @@ def setup_support_commands(bot):
             )
             return
         
-        # Close the ticket
-        success = close_ticket(ticket_id, closed_by="user")
-        
-        if success:
-            await interaction.response.send_message(
-                f"✅ Your ticket `{ticket_id}` has been closed.", ephemeral=True
-            )
-        else:
-            await interaction.response.send_message(
-                f"❌ Failed to close ticket `{ticket_id}`.", ephemeral=True
-            )
-
-    @bot.tree.command(name="deleteticket", description="Permanently delete one of your closed tickets")
-    async def delete_ticket_cmd(interaction: discord.Interaction, ticket_id: str):
-        ticket = get_ticket(ticket_id)
-
-        if not ticket:
-            await interaction.response.send_message(
-                f"❌ Ticket `{ticket_id}` not found.", ephemeral=True
-            )
-            return
-        
-        # Check if user owns this ticket
-        if ticket["user_id"] != interaction.user.id:
-            await interaction.response.send_message(
-                "❌ You can only delete your own tickets.", ephemeral=True
-            )
-            return
-        
-        # Check if ticket is closed
-        if ticket["status"] == "open":
-            await interaction.response.send_message(
-                f"❌ Cannot delete open ticket `{ticket_id}`. Close it first with `/closeticket {ticket_id}`.",
-                ephemeral=True
-            )
-            return
-        
-        # Delete the ticket
+        # Delete the ticket directly (no need to close first)
         success = delete_ticket(ticket_id)
         
         if success:
             await interaction.response.send_message(
-                f"🗑️ Ticket `{ticket_id}` has been permanently deleted.", ephemeral=True
+                f"✅ Your ticket `{ticket_id}` has been closed and deleted.", ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                f"❌ Failed to delete ticket `{ticket_id}`.", ephemeral=True
+                f"❌ Failed to close ticket `{ticket_id}`.", ephemeral=True
             )
 
     @bot.tree.command(name="ticketstats", description="View support ticket statistics (Admin only)")

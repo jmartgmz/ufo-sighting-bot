@@ -184,15 +184,30 @@ def setup_sightings_commands(bot):
             inline=False
         )
 
-        # Server breakdown if user has sightings
-        if user_server_breakdown:
-            breakdown_lines = []
-            for server_name, count in sorted(user_server_breakdown.items(), key=lambda x: x[1], reverse=True):
-                breakdown_lines.append(f"**{server_name}**: {count:,} sightings")
+        # Top servers by activity
+        server_totals = {}
+        for guild_id, guild_data in reactions_data.items():
+            server_total = sum(guild_data.values())
+            if server_total > 0:
+                guild = bot.get_guild(int(guild_id))
+                guild_name = guild.name if guild else f"Server {guild_id}"
+                server_totals[guild_name] = server_total
+
+        if server_totals:
+            top_servers = sorted(server_totals.items(), key=lambda x: x[1], reverse=True)[:3]
+            server_lines = []
+            for i, (server_name, total) in enumerate(top_servers, start=1):
+                if i == 1:
+                    emoji = "🥇"
+                elif i == 2:
+                    emoji = "🥈"
+                elif i == 3:
+                    emoji = "🥉"
+                server_lines.append(f"{emoji} **{server_name}** - {total:,} sightings")
             
             embed.add_field(
-                name="Sightings by Server (Top 3)",
-                value="\n".join(breakdown_lines[:3]) + ("..." if len(breakdown_lines) > 3 else ""),
+                name="Top Servers by Activity",
+                value="\n".join(server_lines),
                 inline=False
             )
 

@@ -115,9 +115,9 @@ async def send_images_to_guild(guild_id: str):
             await asyncio.sleep(30)
             continue
 
-        
-        tempInterval = get_random_interval
-        asyncio.sleep(tempInterval)
+        # Wait for random interval before sending first image
+        interval = get_random_interval()
+        await asyncio.sleep(interval)
 
         # Get image with random effect applied
         image_content = await get_random_image_with_effect()
