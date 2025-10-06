@@ -36,8 +36,8 @@ IMAGE_EFFECTS = [""
     "enhanced"     # 5% chance - enhanced contrast/brightness
 ]
 
-# Random intervals for image posting (in seconds)
-INTERVALS = [20 * 60, 30 * 60, 2 * 60 * 60, 1 * 60 * 60]  # 20m, 30m, 2h, 1h
+# Random intervals for image posting (in seconds) - Ultra-rare encounters
+INTERVALS = [2.5 * 60 * 60, 3 * 60 * 60, 3.5 * 60 * 60, 4 * 60 * 60]  # 2.5h, 3h, 3.5h, 4h
 
 async def apply_image_effect(image_url, effect):
     """Apply visual effects to UFO images for enhanced alien atmosphere."""
