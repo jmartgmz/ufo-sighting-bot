@@ -91,7 +91,7 @@ Respond as Grok the alien. Keep your response SHORT (2-3 sentences maximum). Be 
 def setup_alien_commands(bot):
     """Set up alien chat commands."""
     
-    @bot.tree.command(name="alien", description="🛸 Communicate with Grok, an alien from Kepler-442b")
+    @bot.tree.command(name="alien", description="Chat with alien")
     @discord.app_commands.describe(
         message="Your message to the alien"
     )

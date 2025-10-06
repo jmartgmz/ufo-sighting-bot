@@ -10,7 +10,7 @@ from utils.auth import is_admin_user
 def setup_setup_commands(bot):
     """Set up channel configuration and testing commands."""
     
-    @bot.tree.command(name="setchannel", description="Set this channel for image messages")
+    @bot.tree.command(name="setchannel", description="Set UFO image channel")
     @discord.app_commands.checks.has_permissions(manage_guild=True)
     async def setchannel(interaction: discord.Interaction):
         config = load_config()
@@ -31,7 +31,7 @@ def setup_setup_commands(bot):
             ephemeral=True
         )
 
-    @bot.tree.command(name="testimage", description="Send a test image that deletes after 4 seconds (Admin only)")
+    @bot.tree.command(name="testimage", description="Send test UFO image")
     async def testimage(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -72,7 +72,7 @@ def setup_setup_commands(bot):
         except discord.HTTPException as e:
             await interaction.followup.send(f"❌ Failed: {e}", ephemeral=True)
 
-    @bot.tree.command(name="usersightings", description="View UFO reaction counts for yourself or another user")
+    @bot.tree.command(name="usersightings", description="View user's sightings")
     @discord.app_commands.describe(
         user="The user to check sightings for (leave empty for your own sightings)"
     )

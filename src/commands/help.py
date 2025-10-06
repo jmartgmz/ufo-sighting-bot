@@ -8,7 +8,7 @@ from utils.auth import is_admin_user, load_authorized_users
 def setup_help_commands(bot):
     """Set up help-related commands."""
     
-    @bot.tree.command(name="help", description="Show available commands")
+    @bot.tree.command(name="help", description="Show commands")
     async def help_command(interaction: discord.Interaction):
         embed = discord.Embed(
             title="UFO Sighting Bot Commands",
@@ -94,7 +94,7 @@ def setup_help_commands(bot):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="helpadmin", description="Show admin and owner commands")
+    @bot.tree.command(name="helpadmin", description="Show admin commands")
     async def helpadmin_command(interaction: discord.Interaction):
         # Check if user is admin or owner
         if not is_admin_user(interaction.user.id):
@@ -124,8 +124,6 @@ def setup_help_commands(bot):
             "`/reply <ticket_id> <response>` - Reply to a support ticket",
             "`/ban <user> [reason]` - Ban a user from using the bot",
             "`/unban <user>` - Unban a user from using the bot",
-            "`/baninfo <user>` - View ban information for a user",
-            "`/banlist` - List all banned users",
             "`/globalmessage <message>` - Send a message to all servers",
             "`/testimage` - Send a test UFO image",
             "`/testsetup` - Replay the welcome setup message"

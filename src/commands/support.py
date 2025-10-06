@@ -14,7 +14,7 @@ from utils.helpers import is_user_banned
 def setup_support_commands(bot):
     """Set up support-related commands."""
     
-    @bot.tree.command(name="support", description="Send a support request to the bot administrators")
+    @bot.tree.command(name="support", description="Get help")
     async def support_request(interaction: discord.Interaction, message: str):
         # Check if user is banned
         if is_user_banned(interaction.user.id):
@@ -145,7 +145,7 @@ def setup_support_commands(bot):
         else:
             await interaction.response.send_message(error_message, ephemeral=True)
 
-    @bot.tree.command(name="supportchannel", description="Set the channel to receive support requests (Admin only)")
+    @bot.tree.command(name="supportchannel", description="Set support channel")
     async def set_support_channel(interaction: discord.Interaction, channel: discord.TextChannel = None):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -238,7 +238,7 @@ def setup_support_commands(bot):
             )
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-    @bot.tree.command(name="reply", description="Reply to a support ticket (Admin only)")
+    @bot.tree.command(name="reply", description="Reply to ticket")
     async def reply_to_ticket(interaction: discord.Interaction, ticket_id: str, response: str):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -364,7 +364,7 @@ def setup_support_commands(bot):
                 f"❌ An error occurred while sending the reply: {str(e)}",
                 ephemeral=True
             )
-    @bot.tree.command(name="closeticket", description="Close and delete one of your support tickets")
+    @bot.tree.command(name="closeticket", description="Close support ticket")
     async def close_ticket_cmd(interaction: discord.Interaction, ticket_id: str):
         ticket = get_ticket(ticket_id)
 
@@ -393,7 +393,7 @@ def setup_support_commands(bot):
                 f"❌ Failed to close ticket `{ticket_id}`.", ephemeral=True
             )
 
-    @bot.tree.command(name="ticketstats", description="View support ticket statistics (Admin only)")
+    @bot.tree.command(name="ticketstats", description="View ticket stats")
     async def ticket_stats(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -447,7 +447,7 @@ def setup_support_commands(bot):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="alltickets", description="View all open support tickets (Admin only)")
+    @bot.tree.command(name="alltickets", description="View all tickets")
     async def all_tickets(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):

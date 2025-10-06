@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from src.utils.helpers import (
-    is_user_banned, ban_user, unban_user, get_ban_info, load_banned_users
+    is_user_banned, ban_user, unban_user, get_ban_info
 )
 from datetime import datetime
 
@@ -13,7 +13,7 @@ class BanCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="ban", description="Ban a user from using the bot")
+    @app_commands.command(name="ban", description="Ban user")
     @app_commands.describe(
         user="The user to ban",
         reason="Reason for the ban (optional)"
@@ -69,7 +69,7 @@ class BanCommands(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="unban", description="Unban a user from using the bot")
+    @app_commands.command(name="unban", description="Unban user")
     @app_commands.describe(user="The user to unban")
     async def unban_user_command(self, interaction: discord.Interaction, user: discord.User):
         """Unban a user from using the bot."""
@@ -118,116 +118,6 @@ class BanCommands(commands.Cog):
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="baninfo", description="Get information about a user's ban")
-    @app_commands.describe(user="The user to check ban information for")
-    async def ban_info_command(self, interaction: discord.Interaction, user: discord.User):
-        """Get information about a user's ban."""
-        # Check if the user has admin permissions
-        if not interaction.user.guild_permissions.administrator:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-
-        ban_info = get_ban_info(user.id)
-        
-        if not ban_info:
-            embed = discord.Embed(
-                title="ℹ️ No Ban Information",
-                description=f"{user.mention} is not currently banned.",
-                color=discord.Color.blue()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-
-        # Parse the ban date
-        try:
-            ban_date = datetime.fromisoformat(ban_info["banned_at"])
-            ban_timestamp = int(ban_date.timestamp())
-        except:
-            ban_timestamp = None
-
-        embed = discord.Embed(
-            title="🔍 Ban Information",
-            description=f"Ban details for {user.mention}",
-            color=discord.Color.red()
-        )
-        embed.add_field(name="Reason", value=ban_info.get("reason", "Unknown"), inline=False)
-        embed.add_field(name="Banned by", value=f"<@{ban_info.get('banned_by', 'Unknown')}>", inline=True)
-        
-        if ban_timestamp:
-            embed.add_field(name="Ban Date", value=f"<t:{ban_timestamp}:F>", inline=True)
-        else:
-            embed.add_field(name="Ban Date", value="Unknown", inline=True)
-            
-        embed.set_footer(text=f"User ID: {user.id}")
-        embed.set_thumbnail(url=user.display_avatar.url)
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @app_commands.command(name="banlist", description="List all banned users")
-    async def ban_list_command(self, interaction: discord.Interaction):
-        """List all banned users."""
-        # Check if the user has admin permissions
-        if not interaction.user.guild_permissions.administrator:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description="You need administrator permissions to use this command.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-
-        banned_users = load_banned_users()
-        
-        if not banned_users:
-            embed = discord.Embed(
-                title="📋 Ban List",
-                description="No users are currently banned.",
-                color=discord.Color.blue()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-
-        embed = discord.Embed(
-            title="📋 Banned Users",
-            description=f"Total banned users: {len(banned_users)}",
-            color=discord.Color.red()
-        )
-
-        # Add up to 10 banned users to avoid embed limits
-        count = 0
-        for user_id, ban_info in banned_users.items():
-            if count >= 10:
-                embed.add_field(
-                    name="...", 
-                    value=f"And {len(banned_users) - 10} more banned users.", 
-                    inline=False
-                )
-                break
-                
-            try:
-                user = self.bot.get_user(int(user_id))
-                user_name = user.display_name if user else f"Unknown User ({user_id})"
-            except:
-                user_name = f"Unknown User ({user_id})"
-                
-            reason = ban_info.get("reason", "No reason provided")
-            if len(reason) > 50:
-                reason = reason[:47] + "..."
-                
-            embed.add_field(
-                name=f"{user_name}",
-                value=f"**Reason:** {reason}\n**ID:** {user_id}",
-                inline=True
-            )
-            count += 1
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(BanCommands(bot))
