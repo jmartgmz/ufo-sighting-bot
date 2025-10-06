@@ -10,7 +10,7 @@ from utils.auth import is_admin_user
 def setup_setup_commands(bot):
     """Set up channel configuration and testing commands."""
     
-    @bot.tree.command(name="setchannel", description="Set this channel for image messages")
+    @bot.tree.command(name="setchannel", description="Set UFO image channel")
     @discord.app_commands.checks.has_permissions(manage_guild=True)
     async def setchannel(interaction: discord.Interaction):
         config = load_config()
@@ -31,7 +31,7 @@ def setup_setup_commands(bot):
             ephemeral=True
         )
 
-    @bot.tree.command(name="testimage", description="Send a test image that deletes after 4 seconds (Admin only)")
+    @bot.tree.command(name="testimage", description="Send test UFO image")
     async def testimage(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -43,13 +43,25 @@ def setup_setup_commands(bot):
             
         await interaction.response.defer()
 
-        image_url = get_random_image()
+        # Get image with random effect applied
+        from utils.helpers import get_random_image_with_effect
+        image_content = await get_random_image_with_effect()
         try:
-            message = await interaction.channel.send(image_url)
+            # Send either URL string or Discord File
+            if isinstance(image_content, str):
+                message = await interaction.channel.send(image_content)
+                image_url = image_content
+            else:  # Discord File object
+                message = await interaction.channel.send(file=image_content)
+                image_url = f"[Test UFO Image with effects]"
+            
             # Track this test message too so reactions count
-            from ufo_main import bot_ufo_messages
+            from ufo_main import bot_ufo_messages, log_image_sent
             bot_ufo_messages[message.id] = str(interaction.guild.id) if interaction.guild else "dm"
             print(f"🧪 Test image sent (Message ID: {message.id}) - now tracking for reactions")
+            
+            # Log test image sending to global channel
+            await log_image_sent(interaction.channel, message, image_url)
             
             await message.add_reaction("👽")
             print(f"🤖 Bot added 👽 reaction to test message {message.id}")
@@ -60,7 +72,7 @@ def setup_setup_commands(bot):
         except discord.HTTPException as e:
             await interaction.followup.send(f"❌ Failed: {e}", ephemeral=True)
 
-    @bot.tree.command(name="usersightings", description="View UFO reaction counts for yourself or another user")
+    @bot.tree.command(name="usersightings", description="View user's sightings")
     @discord.app_commands.describe(
         user="The user to check sightings for (leave empty for your own sightings)"
     )

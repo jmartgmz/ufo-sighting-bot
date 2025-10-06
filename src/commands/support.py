@@ -4,18 +4,28 @@ Allows users to send support requests to admins and receive replies.
 """
 import discord
 from datetime import datetime
-import uuid
 from utils.auth import is_admin_user
-from utils.config import load_config, save_config
+from utils import (
+    load_config, save_config, load_reactions, save_reactions, is_admin_user,
+    create_ticket, get_ticket, delete_ticket, get_open_tickets
+)
+from utils.helpers import is_user_banned
 
 def setup_support_commands(bot):
     """Set up support-related commands."""
     
-    @bot.tree.command(name="support", description="Send a support request to the bot administrators")
+    @bot.tree.command(name="support", description="Get help")
     async def support_request(interaction: discord.Interaction, message: str):
-        # Generate unique ticket ID
-        ticket_id = str(uuid.uuid4())[:8]
-        
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         # Load config to find support channel
         config = load_config()
         support_channel_id = None
@@ -41,20 +51,14 @@ def setup_support_commands(bot):
             )
             return
         
-        # Store the support ticket
-        if "support_tickets" not in config:
-            config["support_tickets"] = {}
-        
-        config["support_tickets"][ticket_id] = {
-            "user_id": interaction.user.id,
-            "user_name": interaction.user.display_name,
-            "guild_id": interaction.guild.id if interaction.guild else None,
-            "guild_name": interaction.guild.name if interaction.guild else "Direct Message",
-            "message": message,
-            "timestamp": datetime.now().isoformat(),
-            "status": "open"
-        }
-        save_config(config)
+        # Create the support ticket using the new system
+        ticket_id = create_ticket(
+            user_id=interaction.user.id,
+            user_name=interaction.user.display_name,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            guild_name=interaction.guild.name if interaction.guild else "Direct Message",
+            message=message
+        )
         
         # Create embed for support channel
         support_embed = discord.Embed(
@@ -95,9 +99,20 @@ def setup_support_commands(bot):
         
         support_embed.set_footer(text="UFO Sighting Bot Support System")
         
+        # Send to support channel first
         try:
             await support_channel.send(embed=support_embed)
-            
+            success = True
+            error_message = None
+        except discord.Forbidden:
+            success = False
+            error_message = "❌ Unable to send support request. The bot may not have permission to send messages to the support channel."
+        except Exception as e:
+            success = False
+            error_message = f"❌ An error occurred while sending your support request: {str(e)}"
+        
+        # Send response to user based on success/failure
+        if success:
             # Confirm to user
             user_embed = discord.Embed(
                 title="✅ Support Request Sent",
@@ -127,19 +142,10 @@ def setup_support_commands(bot):
             user_embed.set_footer(text="You will receive a DM when an admin responds")
             
             await interaction.response.send_message(embed=user_embed, ephemeral=True)
-            
-        except discord.Forbidden:
-            await interaction.response.send_message(
-                "❌ Unable to send support request. The bot may not have permission to send messages to the support channel.",
-                ephemeral=True
-            )
-        except Exception as e:
-            await interaction.response.send_message(
-                f"❌ An error occurred while sending your support request: {str(e)}",
-                ephemeral=True
-            )
+        else:
+            await interaction.response.send_message(error_message, ephemeral=True)
 
-    @bot.tree.command(name="supportchannel", description="Set the channel to receive support requests (Admin only)")
+    @bot.tree.command(name="supportchannel", description="Set support channel")
     async def set_support_channel(interaction: discord.Interaction, channel: discord.TextChannel = None):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -232,7 +238,7 @@ def setup_support_commands(bot):
             )
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-    @bot.tree.command(name="reply", description="Reply to a support ticket (Admin only)")
+    @bot.tree.command(name="reply", description="Reply to ticket")
     async def reply_to_ticket(interaction: discord.Interaction, ticket_id: str, response: str):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -242,18 +248,26 @@ def setup_support_commands(bot):
             )
             return
         
-        # Load config and find the ticket
-        config = load_config()
-        tickets = config.get("support_tickets", {})
+        # Get the ticket using new system
+        ticket = get_ticket(ticket_id)
         
-        if ticket_id not in tickets:
+        if not ticket:
             await interaction.response.send_message(
                 f"❌ Ticket `{ticket_id}` not found. Please check the ticket ID.",
                 ephemeral=True
             )
             return
         
-        ticket = tickets[ticket_id]
+        # Check if ticket is already closed
+        if ticket["status"] != "open":
+            await interaction.response.send_message(
+                f"❌ Ticket `{ticket_id}` is already closed. Cannot reply to closed tickets.\n"
+                f"Status: `{ticket['status']}`\n"
+                f"Use `/alltickets` to see open tickets only.",
+                ephemeral=True
+            )
+            return
+        
         user_id = ticket["user_id"]
         
         # Get the user to send DM
@@ -307,12 +321,8 @@ def setup_support_commands(bot):
         try:
             await user.send(embed=user_embed)
             
-            # Update ticket status
-            tickets[ticket_id]["status"] = "closed"
-            tickets[ticket_id]["admin_response"] = response
-            tickets[ticket_id]["admin_responder"] = interaction.user.display_name
-            tickets[ticket_id]["response_timestamp"] = datetime.now().isoformat()
-            save_config(config)
+            # Delete ticket after admin response (ticket is resolved)
+            delete_ticket(ticket_id)
             
             # Confirm to admin
             admin_embed = discord.Embed(
@@ -354,3 +364,133 @@ def setup_support_commands(bot):
                 f"❌ An error occurred while sending the reply: {str(e)}",
                 ephemeral=True
             )
+    @bot.tree.command(name="closeticket", description="Close support ticket")
+    async def close_ticket_cmd(interaction: discord.Interaction, ticket_id: str):
+        ticket = get_ticket(ticket_id)
+
+        if not ticket:
+            await interaction.response.send_message(
+                f"❌ Ticket `{ticket_id}` not found.", ephemeral=True
+            )
+            return
+        
+        # Check if user owns this ticket
+        if ticket["user_id"] != interaction.user.id:
+            await interaction.response.send_message(
+                "❌ You can only close your own tickets.", ephemeral=True
+            )
+            return
+        
+        # Delete the ticket directly (no need to close first)
+        success = delete_ticket(ticket_id)
+        
+        if success:
+            await interaction.response.send_message(
+                f"✅ Your ticket `{ticket_id}` has been closed and deleted.", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                f"❌ Failed to close ticket `{ticket_id}`.", ephemeral=True
+            )
+
+    @bot.tree.command(name="ticketstats", description="View ticket stats")
+    async def ticket_stats(interaction: discord.Interaction):
+        # Check if user is admin
+        if not is_admin_user(interaction.user.id):
+            await interaction.response.send_message(
+                "❌ You need admin permissions to view ticket statistics.",
+                ephemeral=True
+            )
+            return
+        
+        from utils.tickets import load_tickets
+        all_tickets = load_tickets()
+        open_tickets = get_open_tickets()
+        
+        embed = discord.Embed(
+            title="📊 Support Ticket Statistics",
+            color=0x4169E1,
+            timestamp=datetime.now()
+        )
+        
+        embed.add_field(
+            name="📈 Total Tickets",
+            value=str(len(all_tickets)),
+            inline=True
+        )
+        
+        embed.add_field(
+            name="🟢 Open Tickets",
+            value=str(len(open_tickets)),
+            inline=True
+        )
+        
+        embed.add_field(
+            name="🔴 Closed Tickets",
+            value=str(len(all_tickets) - len(open_tickets)),
+            inline=True
+        )
+        
+        # Show recent open tickets
+        if open_tickets:
+            recent_open = []
+            for ticket_id, ticket in list(open_tickets.items())[:5]:
+                recent_open.append(f"`{ticket_id}` - **{ticket['user_name']}**")
+            
+            embed.add_field(
+                name="🕐 Recent Open Tickets",
+                value="\n".join(recent_open),
+                inline=False
+            )
+        
+        embed.set_footer(text="Use /reply <ticket_id> <response> to respond to tickets")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @bot.tree.command(name="alltickets", description="View all tickets")
+    async def all_tickets(interaction: discord.Interaction):
+        # Check if user is admin
+        if not is_admin_user(interaction.user.id):
+            await interaction.response.send_message(
+                "❌ You need admin permissions to view all tickets.",
+                ephemeral=True
+            )
+            return
+        
+        open_tickets = get_open_tickets()
+        
+        if not open_tickets:
+            await interaction.response.send_message(
+                "📭 No open support tickets.", ephemeral=True
+            )
+            return
+        
+        embed = discord.Embed(
+            title="🎫 All Open Support Tickets",
+            color=0xFF6B35,
+            timestamp=datetime.now()
+        )
+        
+        ticket_list = []
+        for ticket_id, ticket in open_tickets.items():
+            # Truncate long messages
+            message = ticket["message"]
+            if len(message) > 100:
+                message = message[:97] + "..."
+            
+            ticket_info = f"**`{ticket_id}`** - {ticket['user_name']}\n*{message}*\n*{ticket['timestamp'][:10]}*"
+            ticket_list.append(ticket_info)
+        
+        # Split into multiple fields if too many tickets
+        for i in range(0, len(ticket_list), 5):
+            field_tickets = ticket_list[i:i+5]
+            field_name = f"Tickets ({i+1}-{min(i+5, len(ticket_list))})"
+            embed.add_field(
+                name=field_name,
+                value="\n\n".join(field_tickets),
+                inline=False
+            )
+        
+        embed.set_footer(text=f"Total open tickets: {len(open_tickets)} | Use /reply <ticket_id> <response>")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)

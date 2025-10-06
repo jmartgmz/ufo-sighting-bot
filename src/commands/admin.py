@@ -14,7 +14,7 @@ from utils import (
 def setup_admin_commands(bot, bot_start_time):
     """Set up admin-related commands."""
     
-    @bot.tree.command(name="botinfo", description="Display bot information including server count, uptime, and system stats")
+    @bot.tree.command(name="botinfo", description="Show bot stats")
     async def botinfo(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -117,7 +117,7 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="sync", description="Manually sync slash commands (Owner only)")
+    @bot.tree.command(name="sync", description="Sync commands")
     async def sync_commands(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -131,7 +131,7 @@ def setup_admin_commands(bot, bot_start_time):
         except Exception as e:
             await interaction.followup.send(f"❌ Failed to sync commands: {e}", ephemeral=True)
 
-    @bot.tree.command(name="authorize", description="Add a user to the admin list (Admin only)")
+    @bot.tree.command(name="authorize", description="Add admin user")
     async def authorize_user(interaction: discord.Interaction, user: discord.Member):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -149,7 +149,7 @@ def setup_admin_commands(bot, bot_start_time):
                 ephemeral=True
             )
 
-    @bot.tree.command(name="deauthorize", description="Remove a user from the admin list (Admin only)")
+    @bot.tree.command(name="deauthorize", description="Remove admin user")
     async def deauthorize_user(interaction: discord.Interaction, user: discord.Member):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -167,7 +167,7 @@ def setup_admin_commands(bot, bot_start_time):
                 ephemeral=True
             )
 
-    @bot.tree.command(name="listauthorized", description="List all admin users (Admin only)")
+    @bot.tree.command(name="listauthorized", description="List admin users")
     async def list_authorized(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -197,47 +197,7 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="checkreactions", description="Check reaction data persistence (Admin only)")
-    async def check_reactions(interaction: discord.Interaction):
-        # Check if user is admin
-        if not is_admin_user(interaction.user.id):
-            await interaction.response.send_message("❌ Only admins can check reaction data.", ephemeral=True)
-            return
-        
-        reactions_data = load_reactions()
-        total_reactions = sum(sum(guild_data.values()) for guild_data in reactions_data.values())
-        total_guilds = len(reactions_data)
-        total_users = len(set(uid for guild_data in reactions_data.values() for uid in guild_data.keys()))
-        
-        embed = discord.Embed(
-            title="📊 Reaction Data Status",
-            color=0x00ff00,
-            timestamp=datetime.now()
-        )
-        embed.add_field(name="Total Reactions", value=f"{total_reactions:,}", inline=True)
-        embed.add_field(name="Servers with Data", value=f"{total_guilds}", inline=True)
-        embed.add_field(name="Unique Users", value=f"{total_users}", inline=True)
-        
-        # Show some sample data
-        if reactions_data:
-            sample_data = []
-            for guild_id, guild_data in list(reactions_data.items())[:3]:
-                for user_id, count in list(guild_data.items())[:2]:
-                    user = bot.get_user(int(user_id))
-                    name = user.display_name if user else f"User {user_id}"
-                    sample_data.append(f"• {name}: {count} reactions")
-            
-            if sample_data:
-                embed.add_field(
-                    name="Sample Data",
-                    value="\n".join(sample_data[:5]) + ("..." if len(sample_data) > 5 else ""),
-                    inline=False
-                )
-        
-        embed.set_footer(text="Data loaded fresh from reactions.json")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    @bot.tree.command(name="setlogchannel", description="Set the global logging channel for all servers (Admin only)")
+    @bot.tree.command(name="setlogchannel", description="Set log channel")
     async def setlogchannel(interaction: discord.Interaction, channel: discord.TextChannel = None):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -319,7 +279,7 @@ def setup_admin_commands(bot, bot_start_time):
             )
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-    @bot.tree.command(name="globalmessage", description="Send a message to all servers (Admin only)")
+    @bot.tree.command(name="globalmessage", description="Send global message (admin)")
     async def global_message(interaction: discord.Interaction, message: str):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -444,7 +404,7 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.followup.send(embed=summary_embed, ephemeral=True)
 
-    @bot.tree.command(name="testsetup", description="Replay the welcome setup message (Admin only)")
+    @bot.tree.command(name="testsetup", description="Test setup message")
     async def test_setup(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):

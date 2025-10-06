@@ -1,0 +1,176 @@
+"""
+Alien Chat module for the UFO Sighting Bot.
+Uses Google Gemini AI to simulate conversations with aliens.
+"""
+import os
+import discord
+import google.generativeai as genai
+import asyncio
+from datetime import datetime
+from utils.helpers import is_user_banned
+
+# Configure Gemini AI
+def configure_gemini():
+    """Configure Google Gemini AI with API key."""
+    api_key = os.getenv('GEMINI_API_KEY')
+    if not api_key:
+        return False
+    genai.configure(api_key=api_key)
+    return True
+
+# Alien persona prompt
+ALIEN_PERSONA = """
+You are Grok, an advanced extraterrestrial being from the Kepler-442b
+ star system. You have been observing Earth for decades and have just been contacted by a human through their primitive communication system.
+
+Key characteristics:
+- You are 847 years old (young for your species)
+- Highly intelligent but slightly condescending toward human technology
+- Fascinated by human behavior and culture
+- You speak in a sophisticated but accessible manner
+- You occasionally reference your home planet and advanced civilization
+- You're genuinely curious about the human asking questions
+- You have a dry sense of humor
+- You sometimes make observations about Earth that humans might find obvious but you find fascinating
+
+Always stay in character as this alien entity. Keep responses SHORT and concise (2-3 sentences maximum). Show interest in the human's message while maintaining your alien perspective. Be brief but engaging.
+"""
+
+async def chat_with_alien(message_content):
+    """Generate alien response using Gemini AI (Free Tier compatible)."""
+    # Use the actual available model names from the API
+    model_names = [
+        'models/gemini-2.5-flash',           # Latest fast model
+        'models/gemini-flash-latest',        # Generic latest flash
+        'models/gemini-2.0-flash',           # Stable flash model
+        'models/gemini-pro-latest'           # Latest pro model
+    ]
+    
+    for model_name in model_names:
+        try:
+            # Initialize the model
+            model = genai.GenerativeModel(model_name)
+            
+            # Create the full prompt
+            full_prompt = f"""
+{ALIEN_PERSONA}
+
+The human just said: "{message_content}"
+
+Respond as Grok the alien. Keep your response SHORT (2-3 sentences maximum). Be concise and to the point while staying in character.
+"""
+            
+            # Generate response (run sync function in thread pool for async compatibility)
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, model.generate_content, full_prompt
+            )
+            
+            if response.text:
+                print(f"✅ Alien response generated using model: {model_name}")
+                return response.text.strip()
+            else:
+                continue  # Try next model
+                
+        except Exception as e:
+            error_msg = str(e).lower()
+            print(f"⚠️ Model {model_name} failed: {e}")
+            
+            # Check for specific free tier errors
+            if "quota exceeded" in error_msg or "rate limit" in error_msg:
+                return "```[QUANTUM FREQUENCY OVERLOAD] Too many humans are trying to communicate at once! Our free-tier quantum transmitters are overwhelmed. Please wait a few moments before trying again, patient earthling.```"
+            elif "not found" in error_msg:
+                continue  # Try next model
+            elif "permission denied" in error_msg or "api key" in error_msg:
+                return "```[AUTHORIZATION FAILURE] The interdimensional security protocols are rejecting your transmission. Your API credentials may need verification, human administrator.```"
+            else:
+                continue  # Try next model
+    
+    # If all models failed
+    return "```[COMMUNICATION ERROR] All quantum communication channels are currently disrupted. This may be due to free-tier limitations or system maintenance. Please try again in a few minutes, persistent human.```"
+
+def setup_alien_commands(bot):
+    """Set up alien chat commands."""
+    
+    @bot.tree.command(name="alien", description="Chat with alien")
+    @discord.app_commands.describe(
+        message="Your message to the alien"
+    )
+    async def alien_chat(interaction: discord.Interaction, message: str):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
+        # Check if Gemini is configured
+        if not configure_gemini():
+            await interaction.response.send_message(
+                "❌ **Quantum Communication Array Offline**\n"
+                "The interdimensional transmission system is not configured. "
+                "An administrator needs to set up the GEMINI_API_KEY in the bot's configuration.",
+                ephemeral=True
+            )
+            return
+        
+        # Validate message length
+        if len(message) > 500:
+            await interaction.response.send_message(
+                "⚠️ **Signal Too Strong**\n"
+                "Your transmission is too powerful for our communication array. "
+                "Please limit your message to 500 characters or less.",
+                ephemeral=True
+            )
+            return
+        
+        # Defer response since AI generation might take time
+        await interaction.response.defer()
+        
+        try:
+            # Generate alien response
+            alien_response = await chat_with_alien(message)
+            
+            # Create embed with the new structure
+            embed = discord.Embed(
+                title="ALIEN GROK",
+                color=0x00ff88,  # Alien green
+                timestamp=datetime.now()
+            )
+            
+            embed.add_field(
+                name="YOUR MESSAGE:",
+                value=message,
+                inline=False
+            )
+            
+            embed.add_field(
+                name="GROK RESPONSE:",
+                value=alien_response,
+                inline=False
+            )
+            
+            embed.set_footer(
+                text=f"Communication with {interaction.user.display_name} • Signal: Strong"
+            )
+            
+            # Create file attachment for local image
+            file_path = "assets/images/image.png"
+            file = discord.File(file_path, filename="grok_image.png")
+            embed.set_image(url="attachment://grok_image.png")
+            
+            await interaction.followup.send(embed=embed, file=file)
+            
+            print(f"👽 Alien chat: {interaction.user.display_name} -> '{message[:50]}...'")
+            
+        except Exception as e:
+            await interaction.followup.send(
+                f"🚨 **Cosmic Communication Failure**\n"
+                f"The quantum entanglement field collapsed during transmission. "
+                f"Technical details: `{str(e)[:100]}...`\n"
+                f"Please try again in a moment.",
+                ephemeral=True
+            )
+            print(f"❌ Alien chat error: {e}")

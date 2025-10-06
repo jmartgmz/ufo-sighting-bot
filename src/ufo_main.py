@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 # Import our custom modules
 from utils import load_config, load_reactions, save_reactions, get_random_image, get_random_interval, get_global_log_channel_id, create_welcome_embed
+from utils.helpers import get_random_image_with_effect, is_user_banned
 from commands import setup_all_commands
 
 # Load environment variables
@@ -34,6 +35,58 @@ recent_reactions = {}  # Format: {(user_id, message_id, emoji): timestamp}
 # Track bot's UFO messages (message_id -> guild_id) for reaction tracking
 # We keep messages in memory for 60 seconds after deletion to handle late reactions
 bot_ufo_messages = {}
+
+async def log_image_sent(channel, message, image_url):
+    """Log when the bot sends a UFO image to the global logging channel."""
+    global_log_channel_id = get_global_log_channel_id()
+    if not global_log_channel_id:
+        return
+    
+    global_log_channel = bot.get_channel(global_log_channel_id)
+    if not global_log_channel:
+        return
+    
+    try:
+        # Create embed for image sent log
+        log_embed = discord.Embed(
+            title="🛸 UFO Image Sent",
+            description=f"Bot sent a UFO image to track alien sightings",
+            color=0x9370DB,  # Purple color for image sent logs
+            timestamp=datetime.now()
+        )
+        
+        log_embed.add_field(
+            name="📺 Channel",
+            value=f"{channel.mention} (`{channel.name}`)",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🏛️ Server",
+            value=f"**{channel.guild.name}**\n`{channel.guild.id}`",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🔗 Message ID",
+            value=f"`{message.id}`",
+            inline=True
+        )
+        
+        log_embed.add_field(
+            name="🖼️ Image URL",
+            value=f"[View Image]({image_url})",
+            inline=False
+        )
+        
+        log_embed.set_footer(text="UFO Image Deployment System")
+        log_embed.set_thumbnail(url=image_url)  # Show the image as thumbnail
+        
+        await global_log_channel.send(embed=log_embed)
+        print(f"   📡 Image send logged to global channel")
+        
+    except Exception as e:
+        print(f"Failed to log image send to global channel: {e}")
 
 # --- Independent image loop per guild ---
 async def send_images_to_guild(guild_id: str):
@@ -62,12 +115,27 @@ async def send_images_to_guild(guild_id: str):
             await asyncio.sleep(30)
             continue
 
-        image_url = get_random_image()
+        # Wait for random interval before sending first image
+        interval = get_random_interval()
+        await asyncio.sleep(interval)
+
+        # Get image with random effect applied
+        image_content = await get_random_image_with_effect()
         try:
-            message = await channel.send(image_url)
+            # Send either URL string or Discord File
+            if isinstance(image_content, str):
+                message = await channel.send(image_content)
+                image_url = image_content
+            else:  # Discord File object
+                message = await channel.send(file=image_content)
+                image_url = f"[Processed UFO Image with effects]"
+            
             # Track this message ID so we know it's from the bot even after deletion
             bot_ufo_messages[message.id] = guild_id
             print(f"📤 Sent UFO image in guild {guild_id}, message ID: {message.id} - now tracking for reactions")
+            
+            # Log image sending to global channel
+            await log_image_sent(channel, message, image_url)
             
             await message.add_reaction("👽")
             print(f"🤖 Bot added 👽 reaction to UFO message {message.id}")
@@ -91,6 +159,10 @@ async def send_images_to_guild(guild_id: str):
 async def on_ready():
     """Called when the bot is ready."""
     print(f"🤖 Bot is online as {bot.user.name}")
+    
+    # Load ban commands cog
+    from commands import load_ban_commands
+    await load_ban_commands(bot)
     
     # Set bot status to DND and activity to "watching for ufos"
     activity = discord.Activity(type=discord.ActivityType.watching, name="for Aliens")
@@ -149,6 +221,11 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """Handle reaction tracking for UFO sightings."""
     # Debug logging
     print(f"🔍 Reaction detected: {payload.emoji} by user {payload.user_id} on message {payload.message_id}")
+    
+    # Check if user is banned from using the bot
+    if is_user_banned(payload.user_id):
+        print(f"🚫 Banned user {payload.user_id} attempted to react - ignoring")
+        return
     
     # Accept any emoji, not just alien emoji (this was the bug!)
     # Original code only tracked 👽 but users react with any emoji

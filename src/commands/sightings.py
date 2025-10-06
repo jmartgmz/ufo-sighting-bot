@@ -5,12 +5,23 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 from utils import load_reactions
+from utils.helpers import is_user_banned
 
 def setup_sightings_commands(bot):
     """Set up sighting-related commands."""
     
-    @bot.tree.command(name="localsightings", description="See how many alien sightings you have reacted to in this server")
+    @bot.tree.command(name="localsightings", description="View server sightings")
     async def localsightings(interaction: discord.Interaction):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         if interaction.guild is None:
             await interaction.response.send_message("❌ This command must be used in a server.", ephemeral=True)
             return
@@ -129,8 +140,18 @@ def setup_sightings_commands(bot):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="globalsightings", description="See your total alien sightings across all servers")
+    @bot.tree.command(name="globalsightings", description="View global sightings")
     async def globalsightings(interaction: discord.Interaction):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         user_id = str(interaction.user.id)
 
         reactions_data = load_reactions()
@@ -184,15 +205,30 @@ def setup_sightings_commands(bot):
             inline=False
         )
 
-        # Server breakdown if user has sightings
-        if user_server_breakdown:
-            breakdown_lines = []
-            for server_name, count in sorted(user_server_breakdown.items(), key=lambda x: x[1], reverse=True):
-                breakdown_lines.append(f"**{server_name}**: {count:,} sightings")
+        # Top servers by activity
+        server_totals = {}
+        for guild_id, guild_data in reactions_data.items():
+            server_total = sum(guild_data.values())
+            if server_total > 0:
+                guild = bot.get_guild(int(guild_id))
+                guild_name = guild.name if guild else f"Server {guild_id}"
+                server_totals[guild_name] = server_total
+
+        if server_totals:
+            top_servers = sorted(server_totals.items(), key=lambda x: x[1], reverse=True)[:3]
+            server_lines = []
+            for i, (server_name, total) in enumerate(top_servers, start=1):
+                if i == 1:
+                    emoji = "🥇"
+                elif i == 2:
+                    emoji = "🥈"
+                elif i == 3:
+                    emoji = "🥉"
+                server_lines.append(f"{emoji} **{server_name}** - {total:,} sightings")
             
             embed.add_field(
-                name="Sightings by Server (Top 3)",
-                value="\n".join(breakdown_lines[:3]) + ("..." if len(breakdown_lines) > 3 else ""),
+                name="Top Servers by Activity",
+                value="\n".join(server_lines),
                 inline=False
             )
 
