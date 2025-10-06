@@ -7,6 +7,7 @@ import discord
 import google.generativeai as genai
 import asyncio
 from datetime import datetime
+from utils.helpers import is_user_banned
 
 # Configure Gemini AI
 def configure_gemini():
@@ -95,6 +96,16 @@ def setup_alien_commands(bot):
         message="Your message to the alien"
     )
     async def alien_chat(interaction: discord.Interaction, message: str):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         # Check if Gemini is configured
         if not configure_gemini():
             await interaction.response.send_message(

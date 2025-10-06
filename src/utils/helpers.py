@@ -5,6 +5,8 @@ import random
 import discord
 import io
 import aiohttp
+import json
+import os
 from PIL import Image, ImageOps, ImageEnhance
 from datetime import datetime
 
@@ -181,3 +183,54 @@ def create_welcome_embed():
     )
     
     return embed
+
+# Ban System Functions
+BANNED_USERS_FILE = "data/banned.json"
+
+def load_banned_users():
+    """Load banned users from the JSON file."""
+    if not os.path.exists(BANNED_USERS_FILE):
+        return {}
+    
+    try:
+        with open(BANNED_USERS_FILE, 'r') as f:
+            data = json.load(f)
+            return data.get("banned_users", {})
+    except (json.JSONDecodeError, FileNotFoundError):
+        return {}
+
+def save_banned_users(banned_users):
+    """Save banned users to the JSON file."""
+    data = {"banned_users": banned_users}
+    with open(BANNED_USERS_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
+
+def is_user_banned(user_id):
+    """Check if a user is banned."""
+    banned_users = load_banned_users()
+    return str(user_id) in banned_users
+
+def ban_user(user_id, reason="No reason provided", banned_by=None):
+    """Ban a user with reason and timestamp."""
+    banned_users = load_banned_users()
+    banned_users[str(user_id)] = {
+        "reason": reason,
+        "banned_at": datetime.now().isoformat(),
+        "banned_by": str(banned_by) if banned_by else "Unknown"
+    }
+    save_banned_users(banned_users)
+
+def unban_user(user_id):
+    """Unban a user."""
+    banned_users = load_banned_users()
+    user_id_str = str(user_id)
+    if user_id_str in banned_users:
+        del banned_users[user_id_str]
+        save_banned_users(banned_users)
+        return True
+    return False
+
+def get_ban_info(user_id):
+    """Get ban information for a user."""
+    banned_users = load_banned_users()
+    return banned_users.get(str(user_id), None)

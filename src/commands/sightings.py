@@ -5,12 +5,23 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 from utils import load_reactions
+from utils.helpers import is_user_banned
 
 def setup_sightings_commands(bot):
     """Set up sighting-related commands."""
     
     @bot.tree.command(name="localsightings", description="See how many alien sightings you have reacted to in this server")
     async def localsightings(interaction: discord.Interaction):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         if interaction.guild is None:
             await interaction.response.send_message("❌ This command must be used in a server.", ephemeral=True)
             return
@@ -131,6 +142,16 @@ def setup_sightings_commands(bot):
 
     @bot.tree.command(name="globalsightings", description="See your total alien sightings across all servers")
     async def globalsightings(interaction: discord.Interaction):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         user_id = str(interaction.user.id)
 
         reactions_data = load_reactions()

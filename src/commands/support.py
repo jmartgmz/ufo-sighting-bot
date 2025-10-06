@@ -9,12 +9,23 @@ from utils import (
     load_config, save_config, load_reactions, save_reactions, is_admin_user,
     create_ticket, get_ticket, delete_ticket, get_open_tickets
 )
+from utils.helpers import is_user_banned
 
 def setup_support_commands(bot):
     """Set up support-related commands."""
     
     @bot.tree.command(name="support", description="Send a support request to the bot administrators")
     async def support_request(interaction: discord.Interaction, message: str):
+        # Check if user is banned
+        if is_user_banned(interaction.user.id):
+            embed = discord.Embed(
+                title="🚫 Access Denied",
+                description="You are banned from using this bot.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+            
         # Load config to find support channel
         config = load_config()
         support_channel_id = None

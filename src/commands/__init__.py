@@ -8,6 +8,10 @@ from .help import setup_help_commands
 from .support import setup_support_commands
 from .alien import setup_alien_commands
 
+async def load_ban_commands(bot):
+    """Load ban commands as a cog."""
+    await bot.load_extension('commands.ban')
+
 def setup_all_commands(bot, bot_start_time):
     """Set up all command modules."""
     setup_admin_commands(bot, bot_start_time)
@@ -16,5 +20,8 @@ def setup_all_commands(bot, bot_start_time):
     setup_help_commands(bot)
     setup_support_commands(bot)
     setup_alien_commands(bot)
+    
+    # Load ban commands as a cog
+    bot.loop.create_task(load_ban_commands(bot))
 
 __all__ = ['setup_all_commands']

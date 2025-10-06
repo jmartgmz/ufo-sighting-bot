@@ -122,6 +122,10 @@ def setup_help_commands(bot):
             "`/setlogchannel [channel]` - Set global logging channel (logs all servers)",
             "`/supportchannel [channel]` - Set channel for support requests",
             "`/reply <ticket_id> <response>` - Reply to a support ticket",
+            "`/ban <user> [reason]` - Ban a user from using the bot",
+            "`/unban <user>` - Unban a user from using the bot",
+            "`/baninfo <user>` - View ban information for a user",
+            "`/banlist` - List all banned users",
             "`/globalmessage <message>` - Send a message to all servers",
             "`/testimage` - Send a test UFO image",
             "`/testsetup` - Replay the welcome setup message"

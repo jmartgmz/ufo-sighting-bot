@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 # Import our custom modules
 from utils import load_config, load_reactions, save_reactions, get_random_image, get_random_interval, get_global_log_channel_id, create_welcome_embed
-from utils.helpers import get_random_image_with_effect
+from utils.helpers import get_random_image_with_effect, is_user_banned
 from commands import setup_all_commands
 
 # Load environment variables
@@ -217,6 +217,11 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     """Handle reaction tracking for UFO sightings."""
     # Debug logging
     print(f"🔍 Reaction detected: {payload.emoji} by user {payload.user_id} on message {payload.message_id}")
+    
+    # Check if user is banned from using the bot
+    if is_user_banned(payload.user_id):
+        print(f"🚫 Banned user {payload.user_id} attempted to react - ignoring")
+        return
     
     # Accept any emoji, not just alien emoji (this was the bug!)
     # Original code only tracked 👽 but users react with any emoji
