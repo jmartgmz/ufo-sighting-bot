@@ -13,7 +13,7 @@ class BanCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="ban", description="Ban user")
+    @app_commands.command(name="ban", description="Ban user from using bot (admin)")
     @app_commands.describe(
         user="The user to ban",
         reason="Reason for the ban (optional)"
@@ -69,7 +69,7 @@ class BanCommands(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="unban", description="Unban user")
+    @app_commands.command(name="unban", description="Unban user from using bot (admin)")
     @app_commands.describe(user="The user to unban")
     async def unban_user_command(self, interaction: discord.Interaction, user: discord.User):
         """Unban a user from using the bot."""

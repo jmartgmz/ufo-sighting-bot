@@ -14,7 +14,7 @@ from utils import (
 def setup_admin_commands(bot, bot_start_time):
     """Set up admin-related commands."""
     
-    @bot.tree.command(name="botinfo", description="Show bot stats")
+    @bot.tree.command(name="botinfo", description="Show bot statistics and info (admin)")
     async def botinfo(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -117,7 +117,7 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="sync", description="Sync commands")
+    @bot.tree.command(name="sync", description="Sync slash commands (owner)")
     async def sync_commands(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -131,7 +131,7 @@ def setup_admin_commands(bot, bot_start_time):
         except Exception as e:
             await interaction.followup.send(f"❌ Failed to sync commands: {e}", ephemeral=True)
 
-    @bot.tree.command(name="authorize", description="Add admin user")
+    @bot.tree.command(name="authorize", description="Add user to admin list (admin)")
     async def authorize_user(interaction: discord.Interaction, user: discord.Member):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -149,7 +149,7 @@ def setup_admin_commands(bot, bot_start_time):
                 ephemeral=True
             )
 
-    @bot.tree.command(name="deauthorize", description="Remove admin user")
+    @bot.tree.command(name="deauthorize", description="Remove user from admin list (admin)")
     async def deauthorize_user(interaction: discord.Interaction, user: discord.Member):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -167,7 +167,7 @@ def setup_admin_commands(bot, bot_start_time):
                 ephemeral=True
             )
 
-    @bot.tree.command(name="listauthorized", description="List admin users")
+    @bot.tree.command(name="listauthorized", description="List all admin users (admin)")
     async def list_authorized(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -197,7 +197,7 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="setlogchannel", description="Set log channel")
+    @bot.tree.command(name="setlogchannel", description="Set global logging channel (admin)")
     async def setlogchannel(interaction: discord.Interaction, channel: discord.TextChannel = None):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):
@@ -404,7 +404,7 @@ def setup_admin_commands(bot, bot_start_time):
         
         await interaction.followup.send(embed=summary_embed, ephemeral=True)
 
-    @bot.tree.command(name="testsetup", description="Test setup message")
+    @bot.tree.command(name="testsetup", description="Test welcome setup message (admin)")
     async def test_setup(interaction: discord.Interaction):
         # Check if user is admin
         if not is_admin_user(interaction.user.id):

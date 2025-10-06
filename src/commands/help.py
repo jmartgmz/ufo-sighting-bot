@@ -8,7 +8,7 @@ from utils.auth import is_admin_user, load_authorized_users
 def setup_help_commands(bot):
     """Set up help-related commands."""
     
-    @bot.tree.command(name="help", description="Show commands")
+    @bot.tree.command(name="help", description="Show available commands")
     async def help_command(interaction: discord.Interaction):
         embed = discord.Embed(
             title="UFO Sighting Bot Commands",
@@ -94,7 +94,7 @@ def setup_help_commands(bot):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="helpadmin", description="Show admin commands")
+    @bot.tree.command(name="helpadmin", description="Show admin commands (admin)")
     async def helpadmin_command(interaction: discord.Interaction):
         # Check if user is admin or owner
         if not is_admin_user(interaction.user.id):

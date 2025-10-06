@@ -10,7 +10,7 @@ from utils.helpers import is_user_banned
 def setup_sightings_commands(bot):
     """Set up sighting-related commands."""
     
-    @bot.tree.command(name="localsightings", description="View server sightings")
+    @bot.tree.command(name="localsightings", description="View your UFO sightings in server")
     async def localsightings(interaction: discord.Interaction):
         # Check if user is banned
         if is_user_banned(interaction.user.id):
@@ -140,7 +140,7 @@ def setup_sightings_commands(bot):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @bot.tree.command(name="globalsightings", description="View global sightings")
+    @bot.tree.command(name="globalsightings", description="View your UFO sightings globally")
     async def globalsightings(interaction: discord.Interaction):
         # Check if user is banned
         if is_user_banned(interaction.user.id):
