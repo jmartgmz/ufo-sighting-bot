@@ -58,7 +58,7 @@ async def chat_with_alien(message_content):
 
 The human just said: "{message_content}"
 
-Respond as Grok the alien. Keep your response SHORT (2-3 sentences maximum). Be concise and to the point while staying in character.
+Respond as PAUL the alien. Keep your response SHORT (2-3 sentences maximum). Be concise and to the point while staying in character.
 """
             
             # Generate response (run sync function in thread pool for async compatibility)
@@ -136,7 +136,7 @@ def setup_alien_commands(bot):
             
             # Create embed with the new structure
             embed = discord.Embed(
-                title="ALIEN GROK",
+                title="ALIEN PAUL",
                 color=0x00ff88,  # Alien green
                 timestamp=datetime.now()
             )
@@ -148,7 +148,7 @@ def setup_alien_commands(bot):
             )
             
             embed.add_field(
-                name="GROK RESPONSE:",
+                name="PAUL RESPONSE:",
                 value=alien_response,
                 inline=False
             )
